@@ -12,7 +12,7 @@ struct ClonedDef<T> {
 impl<T: 'static + Clone> ToDefinition for T {
     fn to_definition<'a>(self) -> Box<Definition + 'a> {
         // We wrap this one in a ClonedDef just to avoid conflicting
-        // with definitions that need simple Cloned T for other pusposes,
+        // with definitions that need simple Cloned T for other purposes,
         // like Rc.
         box ClonedDef { value : self }
     }
