@@ -26,7 +26,12 @@ impl<'a> RegistryItemCandidate<'a> {
         }
     }
 
-    pub fn with_args(mut self, arg_sources: &[&str]) -> RegistryItemCandidate<'a> {
+    pub fn with_args(
+        mut self,
+        arg_sources: &[&str]
+    )
+        -> RegistryItemCandidate<'a>
+    {
         self.registry_item.set_arg_sources(arg_sources);
         self
     }

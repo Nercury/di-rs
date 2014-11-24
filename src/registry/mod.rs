@@ -82,6 +82,16 @@ impl<'a> Registry<'a> {
                 let def_type = item.definition.get_type();
                 match def_type.is::<T>() {
                     true    => {
+                        let arg_types = item.definition.get_arg_types();
+
+                        if arg_types.len() != item.arg_sources.len() {
+                            return Err(GetterErr::new(
+                                GetterErrKind::GetterTypeMismatch(GetterTypeErr::new(TypeDef::of::<GetterWrap<T>>())),
+                                name,
+                                success_path
+                            ))
+                        }
+
                         match item.get_getter::<T>(&[]) {
                             Some(getter) => Ok(getter),
                             None => Err(GetterErr::new(
