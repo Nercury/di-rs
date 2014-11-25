@@ -27,7 +27,7 @@ impl<T: 'static + Clone> Definition for ClonedDef<T> {
         Vec::new()
     }
 
-    fn get_getter(&self, _arg_getters: &[Box<Any>]) -> Box<Any> {
+    fn get_getter(&self, _arg_getters: Vec<Box<Any>>) -> Box<Any> {
         box GetterWrap::new(
             box self.value.clone()
         ) as Box<Any>

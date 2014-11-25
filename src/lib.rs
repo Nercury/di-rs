@@ -34,7 +34,9 @@ pub use registry::getter_err::{
     GetterErr,
     GetterErrKind,
     DefinitionTypeErr,
-    GetterTypeErr
+    ArgTypeErr,
+    GetterTypeErr,
+    ArgCountMismatchErr
 };
 
 mod registry;

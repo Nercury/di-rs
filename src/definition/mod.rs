@@ -6,8 +6,10 @@ use std::any::{ Any };
 
 mod clone;
 mod closure_zeroarg;
+mod closure_manyarg;
 
 #[stable]
+#[deriving(Clone)]
 pub struct TypeDef {
     type_id: TypeId,
     type_name: &'static str,
@@ -49,7 +51,7 @@ pub trait Definition {
     #[unstable]
     fn get_arg_types(&self) -> Vec<TypeDef>;
     #[unstable]
-    fn get_getter(&self, arg_getters: &[Box<Any>]) -> Box<Any>;
+    fn get_getter(&self, arg_getters: Vec<Box<Any>>) -> Box<Any>;
 }
 
 /// This trait is implemented for values that can be used as

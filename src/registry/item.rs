@@ -64,7 +64,7 @@ impl<'a> RegistryItem<'a> {
 
     pub fn get_getter<T: 'static>(
         &self,
-        arg_getters: &[Box<Any>]
+        arg_getters: Vec<Box<Any>>
     )
         -> Option<GetterWrap<T>>
     {

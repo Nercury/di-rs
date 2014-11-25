@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::any::Any;
+use std::boxed::BoxAny;
 
 use super::definition::{ Definition, ToDefinition, TypeDef };
 use super::getter::{ GetterWrap };
@@ -7,7 +9,9 @@ use self::getter_err::{
     GetterErr,
     GetterErrKind,
     DefinitionTypeErr,
-    GetterTypeErr
+    ArgTypeErr,
+    GetterTypeErr,
+    ArgCountMismatchErr
 };
 use self::item::{ RegistryItem, RegistryItemCandidate };
 
@@ -66,51 +70,87 @@ impl<'a> Registry<'a> {
     )
         -> Result<GetterWrap<T>, GetterErr>
     {
-        self.inner_getter_construct_for::<T>(name, Vec::new())
+        let result = self.inner_getter_construct_for(name, TypeDef::of::<T>());
+        match result {
+            Ok(boxed_getter) => match boxed_getter.downcast::<GetterWrap<T>>() {
+                Ok(getter) => Ok(*getter),
+                Err(_) => Err(GetterErr::new(
+                    GetterErrKind::GetterTypeMismatch(GetterTypeErr::new(TypeDef::of::<GetterWrap<T>>())),
+                    name
+                )),
+            },
+            Err(e) => Err(e),
+        }
     }
 
-    fn inner_getter_construct_for<T: 'static>(
+    fn inner_getter_construct_for(
         &self,
         name: &str,
-        success_path: Vec<String>
+        required_type: TypeDef
     )
-        -> Result<GetterWrap<T>, GetterErr>
+        -> Result<Box<Any>, GetterErr>
     {
         let maybe_item = self.items.get(&name.to_string());
         match maybe_item {
             Some(item) => {
                 let def_type = item.definition.get_type();
-                match def_type.is::<T>() {
+                match def_type == required_type {
                     true    => {
                         let arg_types = item.definition.get_arg_types();
 
                         if arg_types.len() != item.arg_sources.len() {
                             return Err(GetterErr::new(
-                                GetterErrKind::GetterTypeMismatch(GetterTypeErr::new(TypeDef::of::<GetterWrap<T>>())),
-                                name,
-                                success_path
+                                GetterErrKind::ArgCountMismatch(ArgCountMismatchErr::new(arg_types.len(), item.arg_sources.len())),
+                                name
                             ))
                         }
 
-                        match item.get_getter::<T>(&[]) {
-                            Some(getter) => Ok(getter),
-                            None => Err(GetterErr::new(
-                                GetterErrKind::GetterTypeMismatch(GetterTypeErr::new(TypeDef::of::<GetterWrap<T>>())),
-                                name,
-                                success_path
-                            )),
+                        let mut arg_getters: Vec<Box<Any>> = Vec::with_capacity(arg_types.len());
+
+                        for (source_name, arg_type) in item.arg_sources.iter().zip(arg_types.iter()) {
+
+                            let maybe_arg_getter = self.inner_getter_construct_for(
+                                source_name.as_slice(),
+                                arg_type.clone()
+                            );
+
+                            match maybe_arg_getter {
+                                Ok(boxed_getter) => arg_getters.push(boxed_getter),
+                                Err(e) => return match e.kind {
+                                    GetterErrKind::NotFound => {
+                                        Err(GetterErr::new(
+                                            GetterErrKind::ArgNotFound(e.name),
+                                            name
+                                        ))
+                                    },
+                                    GetterErrKind::DefinitionTypeMismatch(type_err) => {
+                                        Err(GetterErr::new(
+                                            GetterErrKind::ArgTypeMismatch(
+                                                ArgTypeErr::new(
+                                                    e.name.as_slice(),
+                                                    type_err.requested,
+                                                    type_err.found
+                                                )
+                                            ),
+                                            name
+                                        ))
+                                    },
+                                    _ => Err(e)
+                                },
+                            }
                         }
+
+                        Ok(item.definition.get_getter(arg_getters))
                     },
                     false   => {
                         Err(GetterErr::new(
-                            GetterErrKind::DefinitionTypeMismatch(DefinitionTypeErr::new(TypeDef::of::<T>(), def_type)),
-                            name,
-                            success_path
+                            GetterErrKind::DefinitionTypeMismatch(DefinitionTypeErr::new(required_type, def_type)),
+                            name
                         ))
                     },
                 }
             }
-            None => Err(GetterErr::new(GetterErrKind::NotFound, name, success_path))
+            None => Err(GetterErr::new(GetterErrKind::NotFound, name))
         }
     }
 }
