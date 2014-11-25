@@ -5,7 +5,7 @@ use std::intrinsics::get_tydesc;
 use std::any::{ Any };
 
 mod clone;
-mod closure;
+mod closure_zeroarg;
 
 #[stable]
 pub struct TypeDef {
