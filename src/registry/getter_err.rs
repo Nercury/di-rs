@@ -16,6 +16,15 @@ impl DefinitionTypeErr {
             found: found,
         }
     }
+
+    /// Convert this error to arg type error when argument name is known.
+    pub fn to_arg_err(self, name: &str) -> ArgTypeErr {
+        ArgTypeErr::new(
+            name,
+            self.requested,
+            self.found
+        )
+    }
 }
 
 /// Arg definition type does not match requested type.
@@ -105,6 +114,28 @@ impl GetterErr {
         GetterErr {
             kind: kind,
             name: name.to_string()
+        }
+    }
+
+    /// Convert definition error to argument error if there is parent
+    /// argument name.
+    pub fn to_arg_error(self, parent_name: &str) -> GetterErr {
+        match self.kind {
+            GetterErrKind::NotFound => {
+                GetterErr::new(
+                    GetterErrKind::ArgNotFound(self.name),
+                    parent_name
+                )
+            },
+            GetterErrKind::DefinitionTypeMismatch(type_err) => {
+                GetterErr::new(
+                    GetterErrKind::ArgTypeMismatch(
+                        type_err.to_arg_err(self.name.as_slice())
+                    ),
+                    parent_name
+                )
+            },
+            _ => self
         }
     }
 
