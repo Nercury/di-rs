@@ -18,14 +18,14 @@ pub mod getter_err;
 pub mod item;
 
 pub struct Registry<'a> {
-    items: HashMap<String, RegistryItem<'a>>,
+    single_items: HashMap<String, RegistryItem<'a>>,
 }
 
 impl<'a> Registry<'a> {
     /// Create a new registry.
     pub fn new() -> Registry<'a> {
         Registry {
-            items: HashMap::new(),
+            single_items: HashMap::new(),
         }
     }
 
@@ -45,12 +45,12 @@ impl<'a> Registry<'a> {
     }
 
     /// Insert a custom registry definition.
-    pub fn insert<'r>(
+    pub fn insert_single<'r>(
         &'r mut self,
         name: &str,
         registry_item: RegistryItem<'a>
     ) {
-        self.items.insert(name.to_string(), registry_item);
+        self.single_items.insert(name.to_string(), registry_item);
     }
 
     /// Create a getter for a definition.
@@ -59,7 +59,7 @@ impl<'a> Registry<'a> {
     )
         -> Result<GetterWrap<T>, GetterErr>
     {
-        let result = self.getter_for_definition(name, TypeDef::of::<T>());
+        let result = self.any_typechecked_getter_for(name, TypeDef::of::<T>());
         match result {
             Ok(boxed_getter) => match boxed_getter.downcast::<GetterWrap<T>>() {
                 Ok(getter) => Ok(*getter),
@@ -72,35 +72,55 @@ impl<'a> Registry<'a> {
         }
     }
 
+    /// Returns all defined getter names.
+    pub fn all_names(&self) -> Vec<String> {
+        self.single_items.keys().map(|v| v.clone()).collect::<Vec<String>>()
+    }
+
     /// Create anytyped getter for a definition.
-    fn getter_for_definition(
+    pub fn any_typechecked_getter_for(
         &self,
         name: &str,
         required_type: TypeDef
     )
         -> Result<Box<Any>, GetterErr>
     {
-        let maybe_item = self.items.get(&name.to_string());
-        match maybe_item {
-            Some(item) => {
+        let maybe_getter = self.any_getter_for(name);
+        match maybe_getter {
+            Ok(getter) => {
+                let item = self.single_items.get(&name.to_string()).unwrap();
                 let def_type = item.definition.get_type();
                 match def_type == required_type {
-                    true    => {
-                        match self.getters_for_arguments(
-                            name,
-                            &item.arg_sources,
-                            &item.definition.get_arg_types()
-                        ) {
-                            Ok(arg_getters) => Ok(item.definition.get_getter(arg_getters)),
-                            Err(e) => Err(e),
-                        }
-                    },
-                    false   => {
-                        Err(GetterErr::new(
+                    true    => Ok(getter),
+                    false   => Err(
+                        GetterErr::new(
                             GetterErrKind::DefinitionTypeMismatch(DefinitionTypeErr::new(required_type, def_type)),
                             name
-                        ))
-                    },
+                        )
+                    ),
+                }
+            }
+            Err(e) => Err(e)
+        }
+    }
+
+    /// Create anytyped getter for a definition.
+    pub fn any_getter_for(
+        &self,
+        name: &str
+    )
+        -> Result<Box<Any>, GetterErr>
+    {
+        let maybe_item = self.single_items.get(&name.to_string());
+        match maybe_item {
+            Some(item) => {
+                match self.any_getters_for_arguments(
+                    name,
+                    &item.arg_sources,
+                    &item.definition.get_arg_types()
+                ) {
+                    Ok(arg_getters) => Ok(item.definition.get_getter(arg_getters)),
+                    Err(e) => Err(e),
                 }
             }
             None => Err(GetterErr::new(GetterErrKind::NotFound, name))
@@ -108,7 +128,7 @@ impl<'a> Registry<'a> {
     }
 
     /// Create anytyped getters for definition arguments.
-    fn getters_for_arguments(
+    fn any_getters_for_arguments(
         &self,
         parent_name: &str,
         arg_sources: &Vec<String>,
@@ -126,7 +146,7 @@ impl<'a> Registry<'a> {
         let mut arg_getters: Vec<Box<Any>> = Vec::with_capacity(arg_types.len());
 
         for (source_name, arg_type) in arg_sources.iter().zip(arg_types.iter()) {
-            let maybe_arg_getter = self.getter_for_argument(
+            let maybe_arg_getter = self.any_getter_for_argument(
                 parent_name,
                 source_name.as_slice(),
                 arg_type.clone()
@@ -144,7 +164,7 @@ impl<'a> Registry<'a> {
     /// Construct an anytyped getter for definition in case the deffinition is
     /// an argument. This simply modifies error if it occurs to include parent
     /// name.
-    fn getter_for_argument(
+    fn any_getter_for_argument(
         &self,
         parent_name: &str,
         name: &str,
@@ -152,7 +172,7 @@ impl<'a> Registry<'a> {
     )
         -> Result<Box<Any>, GetterErr>
     {
-        match self.getter_for_definition(name, required_type) {
+        match self.any_typechecked_getter_for(name, required_type) {
             Ok(boxed_getter) => Ok(boxed_getter),
             Err(e) => Err(e.to_arg_error(parent_name)),
         }

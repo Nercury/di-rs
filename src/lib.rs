@@ -38,8 +38,10 @@ pub use registry::getter_err::{
     GetterTypeErr,
     ArgCountMismatchErr
 };
+pub use container::{ Container };
 
 mod registry;
+mod container;
 
 pub mod getter;
 pub mod definition;

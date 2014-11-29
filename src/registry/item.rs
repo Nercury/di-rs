@@ -37,7 +37,7 @@ impl<'a> RegistryItemCandidate<'a> {
     }
 
     pub fn insert(self) -> &'a mut Registry<'a> {
-        self.registry.insert(self.name.as_slice(), self.registry_item);
+        self.registry.insert_single(self.name.as_slice(), self.registry_item);
         self.registry
     }
 }
