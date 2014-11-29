@@ -87,14 +87,12 @@ impl<'a> Registry<'a> {
     {
         let maybe_getter = self.any_getter_for(name);
         match maybe_getter {
-            Ok(getter) => {
-                let item = self.single_items.get(&name.to_string()).unwrap();
-                let def_type = item.definition.get_type();
-                match def_type == required_type {
+            Ok((typedef, getter)) => {
+                match typedef == required_type {
                     true    => Ok(getter),
                     false   => Err(
                         GetterErr::new(
-                            GetterErrKind::DefinitionTypeMismatch(DefinitionTypeErr::new(required_type, def_type)),
+                            GetterErrKind::DefinitionTypeMismatch(DefinitionTypeErr::new(required_type, typedef)),
                             name
                         )
                     ),
@@ -109,7 +107,7 @@ impl<'a> Registry<'a> {
         &self,
         name: &str
     )
-        -> Result<Box<Any>, GetterErr>
+        -> Result<(TypeDef, Box<Any>), GetterErr>
     {
         let maybe_item = self.single_items.get(&name.to_string());
         match maybe_item {
@@ -119,7 +117,12 @@ impl<'a> Registry<'a> {
                     &item.arg_sources,
                     &item.definition.get_arg_types()
                 ) {
-                    Ok(arg_getters) => Ok(item.definition.get_getter(arg_getters)),
+                    Ok(arg_getters) => Ok(
+                        (
+                            item.definition.get_type(),
+                            item.definition.get_getter(arg_getters)
+                        )
+                    ),
                     Err(e) => Err(e),
                 }
             }
