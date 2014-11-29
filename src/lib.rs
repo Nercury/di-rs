@@ -38,6 +38,7 @@ pub use registry::getter_err::{
     GetterTypeErr,
     ArgCountMismatchErr
 };
+
 pub use container::{ Container };
 
 mod registry;
@@ -45,3 +46,11 @@ mod container;
 
 pub mod getter;
 pub mod definition;
+
+pub fn output_errors(errors: Vec<GetterErr>) -> String {
+    errors
+        .iter()
+        .map(|e| e.to_string())
+        .collect::<Vec<String>>()
+        .connect("\n")
+}
