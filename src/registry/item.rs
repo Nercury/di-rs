@@ -26,7 +26,7 @@ impl<'a> RegistryItemCandidate<'a> {
         }
     }
 
-    pub fn with_args(
+    pub fn args(
         mut self,
         arg_sources: &[&str]
     )

@@ -203,7 +203,7 @@ mod test {
             Vec::new()
         }
 
-        fn get_getter(&self, _arg_getters: &[Box<Any>]) -> Box<Any> {
+        fn get_getter(&self, _arg_getters: Vec<Box<Any>>) -> Box<Any> {
             box GetterWrap::new(
                 box 16f32
             ) as Box<Any>
@@ -255,9 +255,9 @@ mod test {
     #[test]
     fn returns_getter_mismatch() {
         let mut registry = Registry::new();
-        registry.insert("a", RegistryItem::new(box IntLie));
+        registry.insert_single("a", RegistryItem::new(box IntLie));
 
-        let err = registry.maybe_getter_for::<int>("a")
+        let err = registry.getter_for::<int>("a")
             .err()
             .unwrap();
 
@@ -286,7 +286,7 @@ mod test {
         registry
             .one::<OneT>(one_name, one_def)
             .insert()
-            .maybe_getter_for::<GetterT>(get_name)
+            .getter_for::<GetterT>(get_name)
             .err()
             .unwrap()
     }
