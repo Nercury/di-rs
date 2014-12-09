@@ -11,14 +11,15 @@ repository = "https://github.com/Nercury/rust-di"
 readme = "README.md"
 
 keywords = [
-    "di", "dic", "dependencies",
-    "factory", "factories",
-    "injection", "modules"
+    "di", "dic", "dependency", "container", "injection"
 ]
 
 license = "MIT"
 
 description = "Dependency injection container."
+
+[dependencies]
+metafactory = "*"
 
 [profile.dev]
 opt-level = 1  # Controls the --opt-level the compiler builds with
