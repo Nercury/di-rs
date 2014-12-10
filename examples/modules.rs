@@ -7,7 +7,7 @@ fn main() {
             |val: &str| println!("{}, {}", name, val);
         })
         .with_args(&["first_name"])
-        // .insert()
+        .insert()
     ;
 
     // registry

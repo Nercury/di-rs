@@ -3,15 +3,11 @@ extern crate metafactory;
 
 pub mod registry;
 
-pub struct Container {
-    aa: int,
-}
+pub struct Container;
 
 
 impl Container {
     pub fn new() -> Container {
-        Container {
-            aa: 4,
-        }
+        Container
     }
 }
