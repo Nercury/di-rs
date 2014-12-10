@@ -67,8 +67,8 @@ impl Registry {
             id,
             value.to_metafactory(),
             arg_sources.iter()
-            .map(|s| s.to_string())
-            .collect()
+                .map(|s| s.to_string())
+                .collect()
         );
     }
 

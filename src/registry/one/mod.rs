@@ -44,6 +44,16 @@ impl<'a> One<'a> {
         self
     }
 
+    pub fn add_arg(
+        mut self,
+        arg_source: &str
+    )
+        -> One<'a>
+    {
+        self.arg_builder.push_arg_source(arg_source);
+        self
+    }
+
     pub fn insert(self) -> &'a mut (OneFinalizer + 'a) {
         let finalizer = self.finalizer;
         finalizer.finalize_one_of(self.params, self.arg_builder);

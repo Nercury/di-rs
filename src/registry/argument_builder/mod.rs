@@ -15,4 +15,8 @@ impl ArgumentBuilder {
             self.arg_sources.push(str.to_string());
         }
     }
+
+    pub fn push_arg_source<'r>(&'r mut self, arg_source: &str) {
+        self.arg_sources.push(arg_source.to_string());
+    }
 }
