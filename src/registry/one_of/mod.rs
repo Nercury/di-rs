@@ -60,7 +60,7 @@ pub trait OneOfFinalizer {
 
 impl OneOfFinalizer for Registry {
     fn finalize_one_of<'a>(&mut self, params: OneOfParams<'a>, arg_builder: ArgumentBuilder) {
-        self.insert_with_args_one_of(
+        self.finalize_with_args_one_of(
             params.collection_id.as_slice(),
             params.id.as_slice(),
             params.value,
