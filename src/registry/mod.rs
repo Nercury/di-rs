@@ -1,8 +1,10 @@
 use metafactory::{ ToMetaFactory, MetaFactory };
+//use self::definition::{ Definitions };
 use self::one_of::{ OneOf };
 use self::one::{ One };
 
 pub mod argument_builder;
+//pub mod definition;
 pub mod one_of;
 pub mod one;
 
@@ -52,6 +54,16 @@ impl Registry {
         );
     }
 
+    pub fn insert_with_arg_one<T: ToMetaFactory>(&mut self, id: &str, arg_source: &str, value: T) {
+        self.finalize_with_args_one(
+            id,
+            value.to_metafactory(),
+            [arg_source].iter()
+                .map(|s| s.to_string())
+                .collect()
+        );
+    }
+
     pub fn insert_one_of<T: ToMetaFactory>(&mut self, collection_id: &str, id: &str, value: T) {
         self.finalize_with_args_one_of(
             collection_id,
@@ -67,6 +79,17 @@ impl Registry {
             id,
             value.to_metafactory(),
             arg_sources.iter()
+                .map(|s| s.to_string())
+                .collect()
+        );
+    }
+
+    pub fn insert_with_arg_one_of<T: ToMetaFactory>(&mut self, collection_id: &str, id: &str, arg_source: &str, value: T) {
+        self.finalize_with_args_one_of(
+            collection_id,
+            id,
+            value.to_metafactory(),
+            [arg_source].iter()
                 .map(|s| s.to_string())
                 .collect()
         );

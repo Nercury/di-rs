@@ -6,7 +6,7 @@ fn main() {
         .one_of("printers", "first_printer", |name: String| {
             |val: &str| println!("{}, {}", name, val);
         })
-        .with_args(&["first_name"])
+        .with_arg("first_name")
         .insert()
     ;
 
@@ -18,7 +18,7 @@ fn main() {
         .insert()
     ;
 
-    registry.insert_with_args_one("output", &["printers"], |printers: Vec<|String| -> String>| {
+    registry.insert_with_arg_one("output", "printers", |printers: Vec<|String| -> String>| {
         let mut mut_printers = printers;
         mut_printers.iter_mut()
             .map(|p| (*p)("Text".to_string()))
@@ -27,7 +27,7 @@ fn main() {
     });
 
     registry.insert_one("first_name", "Printer One");
-    registry.insert_one("second_name", "Printer Second");
+    registry.one("second_name", "Printer Second").insert();
 
     // let container = di::Container::new(registry);
     //

@@ -44,6 +44,16 @@ impl<'a> One<'a> {
         self
     }
 
+    pub fn with_arg(
+        mut self,
+        arg_source: &str
+    )
+        -> One<'a>
+    {
+        self.arg_builder.set_arg_source(arg_source);
+        self
+    }
+
     pub fn add_arg(
         mut self,
         arg_source: &str
