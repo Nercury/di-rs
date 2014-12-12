@@ -94,15 +94,15 @@ impl<T> Getter<Vec<T>> for FactoryVecGetter<T> {
 
 #[cfg(test)]
 mod test {
-    use metafactory::{ constant, metafactory, AsFactoryExt };
+    use metafactory::{ argless_as_factory, metafactory, AsFactoryExt };
     use super::{ FactoryContainer };
 
     #[test]
     fn should_be_usable_as_vec_of_types() {
         let mut container = FactoryContainer::new::<int>();
         container.push_items(vec![
-            constant(5i),
-            constant(13i)
+            argless_as_factory(5i),
+            argless_as_factory(13i)
         ]);
 
         let parent_metafactory = metafactory(
