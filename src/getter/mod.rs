@@ -2,7 +2,7 @@ use std::any::{ Any, AnyMutRefExt };
 use std::boxed::BoxAny;
 use metafactory::factory::{ Factory, Getter };
 
-/// Proxy for configuring facotry list
+/// Proxy for configuring factory list
 /// without caring about the type used.
 pub struct FactoryContainer<'a> {
     any_getter: Box<Any>,

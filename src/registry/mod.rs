@@ -1,3 +1,4 @@
+use std::kinds::marker;
 use metafactory::{ ToMetaFactory, MetaFactory };
 //use self::definition::{ Definitions };
 use self::one_of::{ OneOf };
@@ -8,11 +9,13 @@ pub mod argument_builder;
 pub mod one_of;
 pub mod one;
 
-pub struct Registry;
+pub struct Registry {
+    _marker: marker::NoCopy,
+}
 
 impl Registry {
     pub fn new() -> Registry {
-        Registry
+        Registry { _marker: marker::NoCopy }
     }
 
     pub fn one_of<'r, T: ToMetaFactory>(&'r mut self, collection_id: &str, id: &str, value: T)

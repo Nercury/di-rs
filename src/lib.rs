@@ -10,13 +10,19 @@
 extern crate typedef;
 extern crate metafactory;
 
+use std::kinds::marker;
+
 pub mod registry;
 pub mod getter;
 
-pub struct Container;
+pub struct Container {
+    _marker: marker::NoCopy,
+}
 
 impl Container {
     pub fn new() -> Container {
-        Container
+        Container {
+            _marker: marker::NoCopy,
+        }
     }
 }
