@@ -61,7 +61,6 @@ use metafactory::factory::{ Factory, Getter };
 /// }
 /// ```
 pub struct FactoryContainer<'a> {
-    container_type: TypeDef,
     any_getter: Box<Any>,
     do_push_items: |&mut Box<Any>, Vec<Box<Any>>|:'a -> (),
     do_new_factory: |&mut Box<Any>|:'a -> Box<Any>, // Don't worry, it's like Javascript ;)
@@ -71,7 +70,6 @@ impl<'a> FactoryContainer<'a> {
     /// Create new factory container instance for specified type.
     pub fn new<T: 'static>() -> FactoryContainer<'a> {
         FactoryContainer {
-            container_type: TypeDef::of::<Vec<T>>(),
             any_getter: box FactoryVecGetter::<T>::new(),
             do_push_items: |any_getter, items| {
                 let getter: &mut FactoryVecGetter<T> = any_getter
@@ -115,12 +113,10 @@ impl<'a> FactoryContainer<'a> {
     /// ```
     /// use di::factory_container::FactoryContainer;
     ///
-    /// let container = FactoryContainer::new::<bool>();
-    ///
-    /// assert!(container.get_type().is::<Vec<bool>>());
+    /// assert!(FactoryContainer::type_for::<bool>().is::<Vec<bool>>());
     /// ```
-    pub fn get_type(&self) -> TypeDef {
-        self.container_type
+    pub fn type_for<T: 'static>() -> TypeDef {
+        TypeDef::of::<Vec<T>>()
     }
 }
 
