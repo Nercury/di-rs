@@ -1,4 +1,5 @@
 use std::kinds::marker;
+use typedef::TypeDef;
 use metafactory::{ ToMetaFactory, MetaFactory };
 //use self::definition::{ Definitions };
 use self::one_of::{ OneOf };
@@ -8,6 +9,8 @@ pub mod argument_builder;
 //pub mod definition;
 pub mod one_of;
 pub mod one;
+
+struct GroupCandidate;
 
 pub struct Registry {
     _marker: marker::NoCopy,
@@ -21,6 +24,7 @@ impl Registry {
     pub fn one_of<'r, T: ToMetaFactory>(&'r mut self, collection_id: &str, id: &str, value: T)
         -> OneOf<'r>
     {
+        //let type_of_group = TypeDef::name_of::<T>();
         OneOf::new(
             self,
             collection_id,

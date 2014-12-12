@@ -13,7 +13,7 @@ extern crate metafactory;
 use std::kinds::marker;
 
 pub mod registry;
-pub mod getter;
+pub mod factory_container;
 
 pub struct Container {
     _marker: marker::NoCopy,

@@ -1,18 +1,77 @@
 use std::any::{ Any, AnyMutRefExt };
 use std::boxed::BoxAny;
+use typedef::TypeDef;
 use metafactory::factory::{ Factory, Getter };
 
-/// Proxy for configuring factory list
-/// without caring about the type used.
+/// Proxy for configuring factory list without caring about the type used.
+///
+/// This is intended for internal use as injectable container of same-type
+/// factories. Used for implementing `one_of` di configuration.
+///
+/// ```
+/// # extern crate metafactory;
+/// # extern crate di;
+/// use std::any::Any;
+/// use metafactory::{ metafactory, argless_as_factory, AsFactoryExt };
+/// use di::factory_container::FactoryContainer;
+///
+/// fn main() {
+///     // Let's say we know that we will have bunch of `bool` factories.
+///     // In that case we create a new factory container for them:
+///     let mut container = FactoryContainer::new::<bool>();
+///
+///     // Once we actually have our factories, we can inject them into container
+///     // without dealing with types. Of course, we should make sure that types
+///     // actually match before doing that in the code that is using this
+///     // implementation.
+///     container.push_items(vec![
+///         argless_as_factory(|| true),
+///         argless_as_factory(true),
+///         argless_as_factory(|| 4i == 8),
+///     ]);
+///
+///     // Once we are ready to use the factory, we can call `new_factory` to
+///     // convert all dynamic stuff to statically constructed call hierarchy:
+///     let anyed_bool_array_factory = container.new_factory();
+///
+///     // Of course, that returns it anyed (`Box<Any>`), but we can easily get un-anyed version
+///     // by downcasting to `Factory<Vec<bool>>` or using a convenience extension
+///     // method for that:
+///     let bool_array_factory = anyed_bool_array_factory
+///         .as_factory_of::<Vec<bool>>().unwrap();
+///
+///     // Calling it should produce expected boolean vector:
+///     assert_eq!(bool_array_factory.take(), vec![true, true, false]);
+///
+///     // Of course, factory container itself should be usable as argument
+///     // for other factories:
+///     let metafactory_all_true = metafactory(|values: Vec<bool>| {
+///         values.iter().fold(true, |a, &i| a & i)
+///     });
+///
+///     // We can pass it when constructing a factory for this lambda metafactory:
+///     let factory_all_true = metafactory_all_true.new(vec![
+///         box bool_array_factory.clone() as Box<Any>
+///     ])
+///         .ok().unwrap() // check for errors here
+///         .as_factory_of::<bool>().unwrap() // same story with downcasting
+///     ;
+///
+///     assert_eq!(factory_all_true.take(), false); // not all values are true
+/// }
+/// ```
 pub struct FactoryContainer<'a> {
+    container_type: TypeDef,
     any_getter: Box<Any>,
     do_push_items: |&mut Box<Any>, Vec<Box<Any>>|:'a -> (),
     do_new_factory: |&mut Box<Any>|:'a -> Box<Any>, // Don't worry, it's like Javascript ;)
 }
 
 impl<'a> FactoryContainer<'a> {
+    /// Create new factory container instance for specified type.
     pub fn new<T: 'static>() -> FactoryContainer<'a> {
         FactoryContainer {
+            container_type: TypeDef::of::<Vec<T>>(),
             any_getter: box FactoryVecGetter::<T>::new(),
             do_push_items: |any_getter, items| {
                 let getter: &mut FactoryVecGetter<T> = any_getter
@@ -49,6 +108,19 @@ impl<'a> FactoryContainer<'a> {
     /// that makes `Vec<int>` values.
     pub fn new_factory(&mut self) -> Box<Any> {
         (self.do_new_factory)(&mut self.any_getter)
+    }
+
+    /// Returns factory type `Vec<T>`.
+    ///
+    /// ```
+    /// use di::factory_container::FactoryContainer;
+    ///
+    /// let container = FactoryContainer::new::<bool>();
+    ///
+    /// assert!(container.get_type().is::<Vec<bool>>());
+    /// ```
+    pub fn get_type(&self) -> TypeDef {
+        self.container_type
     }
 }
 
