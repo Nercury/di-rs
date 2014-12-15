@@ -4,6 +4,7 @@ use metafactory::{ ToMetaFactory, MetaFactory };
 //use self::definition::{ Definitions };
 use self::one_of::{ OneOf };
 use self::one::{ One };
+use super::factory_container::FactoryContainer;
 
 pub mod argument_builder;
 //pub mod definition;
@@ -21,10 +22,10 @@ impl Registry {
         Registry { _marker: marker::NoCopy }
     }
 
-    pub fn one_of<'r, T: ToMetaFactory>(&'r mut self, collection_id: &str, id: &str, value: T)
+    pub fn one_of<'r, T: 'static + ToMetaFactory>(&'r mut self, collection_id: &str, id: &str, value: T)
         -> OneOf<'r>
     {
-        //let type_of_group = TypeDef::name_of::<T>();
+        let group_type = TypeDef::of::<Vec<T>>();
         OneOf::new(
             self,
             collection_id,

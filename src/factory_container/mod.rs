@@ -1,6 +1,5 @@
 use std::any::{ Any, AnyMutRefExt };
 use std::boxed::BoxAny;
-use typedef::TypeDef;
 use metafactory::factory::{ Factory, Getter };
 
 /// Proxy for configuring factory list without caring about the type used.
@@ -106,17 +105,6 @@ impl<'a> FactoryContainer<'a> {
     /// that makes `Vec<int>` values.
     pub fn new_factory(&mut self) -> Box<Any> {
         (self.do_new_factory)(&mut self.any_getter)
-    }
-
-    /// Returns factory type `Vec<T>`.
-    ///
-    /// ```
-    /// use di::factory_container::FactoryContainer;
-    ///
-    /// assert!(FactoryContainer::type_for::<bool>().is::<Vec<bool>>());
-    /// ```
-    pub fn type_for<T: 'static>() -> TypeDef {
-        TypeDef::of::<Vec<T>>()
     }
 }
 

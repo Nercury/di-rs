@@ -21,6 +21,9 @@ description = "Dependency injection container."
 [dependencies]
 metafactory = "*"
 
+# [dependencies.metafactory]
+# path = "../../component/metafactory"
+
 [profile.dev]
 opt-level = 1  # Controls the --opt-level the compiler builds with
 debug = true   # Controls whether the compiler passes -g or `--cfg ndebug`

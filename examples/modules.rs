@@ -11,7 +11,7 @@ fn main() {
     ;
 
     registry
-        .one_of("printers", "second_printer", |name: &str| {
+        .one_of("printers", "second_printer", |name: &'static str| {
             |val: &str| println!("{}, {}", name, val);
         })
         .add_arg("second_name")
