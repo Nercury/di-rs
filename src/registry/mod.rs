@@ -1,5 +1,6 @@
 use std::kinds::marker;
 use typedef::TypeDef;
+use std::collections::BTreeSet;
 use metafactory::{ ToMetaFactory, MetaFactory };
 //use self::definition::{ Definitions };
 use self::one_of::{ OneOf };
@@ -11,21 +12,38 @@ pub mod argument_builder;
 pub mod one_of;
 pub mod one;
 
-struct GroupCandidate;
+struct GroupCandidateDefinition {
+    id: String,
+    typedef: TypeDef,
+}
+ord_for!(GroupCandidateDefinition { id })
+
+/// Info about the group that might be added.
+///
+/// Most of info here is for making greatest runtime
+/// errors... err, messages possible.
+struct GroupCandidate {
+    collection_id: String,
+    collection_type_name: String,
+    collection_typedef: TypeDef,
+    definitions: BTreeSet<GroupCandidateDefinition>,
+}
+ord_for!(GroupCandidate { collection_id, collection_type_name })
 
 pub struct Registry {
+    maybe_groups: BTreeSet<GroupCandidate>,
     _marker: marker::NoCopy,
 }
 
 impl Registry {
     pub fn new() -> Registry {
-        Registry { _marker: marker::NoCopy }
+        Registry { maybe_groups: BTreeSet::new(), _marker: marker::NoCopy }
     }
 
     pub fn one_of<'r, T: 'static + ToMetaFactory>(&'r mut self, collection_id: &str, id: &str, value: T)
         -> OneOf<'r>
     {
-        let group_type = TypeDef::of::<Vec<T>>();
+        let group_type = FactoryContainer::container_of::<T>();
         OneOf::new(
             self,
             collection_id,

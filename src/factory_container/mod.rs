@@ -1,5 +1,6 @@
 use std::any::{ Any, AnyMutRefExt };
 use std::boxed::BoxAny;
+use typedef::TypeDef;
 use metafactory::factory::{ Factory, Getter };
 
 /// Proxy for configuring factory list without caring about the type used.
@@ -106,6 +107,13 @@ impl<'a> FactoryContainer<'a> {
     pub fn new_factory(&mut self) -> Box<Any> {
         (self.do_new_factory)(&mut self.any_getter)
     }
+
+    /// Returns type which is used as container result.
+    ///
+    /// I start by implementing `Vec<T>`, because it looks simpliest.
+    pub fn container_of<T: 'static>() -> TypeDef {
+        TypeDef::of::<Vec<T>>()
+    }
 }
 
 struct FactoryVecGetter<T: 'static> {
@@ -139,7 +147,6 @@ impl<T> Getter<Vec<T>> for FactoryVecGetter<T> {
                 .map(|f| f.take())
         );
 
-        // I love Rust.
         items
     }
 
