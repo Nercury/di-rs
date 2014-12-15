@@ -18,7 +18,7 @@ fn main() {
         .insert()
     ;
 
-    registry.insert_with_arg_one("output", "printers", |printers: Vec<|String| -> String>| {
+    registry.insert_with_arg_one("output", "printers", |printers: Vec<|String|:'static -> String>| {
         let mut mut_printers = printers;
         mut_printers.iter_mut()
             .map(|p| (*p)("Text".to_string()))

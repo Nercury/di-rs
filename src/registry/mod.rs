@@ -34,7 +34,7 @@ impl Registry {
         )
     }
 
-    pub fn one<'r, T: ToMetaFactory>(&'r mut self, id: &str, value: T)
+    pub fn one<'r, T: 'static + ToMetaFactory>(&'r mut self, id: &str, value: T)
         -> One<'r>
     {
         One::new(
@@ -44,7 +44,7 @@ impl Registry {
         )
     }
 
-    pub fn insert_one<T: ToMetaFactory>(&mut self, id: &str, value: T) {
+    pub fn insert_one<T: 'static + ToMetaFactory>(&mut self, id: &str, value: T) {
         self.finalize_with_args_one(
             id,
             value.to_metafactory(),
@@ -52,7 +52,7 @@ impl Registry {
         );
     }
 
-    pub fn insert_with_args_one<T: ToMetaFactory>(&mut self, id: &str, arg_sources: &[&str], value: T) {
+    pub fn insert_with_args_one<T: 'static + ToMetaFactory>(&mut self, id: &str, arg_sources: &[&str], value: T) {
         self.finalize_with_args_one(
             id,
             value.to_metafactory(),
@@ -62,7 +62,7 @@ impl Registry {
         );
     }
 
-    pub fn insert_with_arg_one<T: ToMetaFactory>(&mut self, id: &str, arg_source: &str, value: T) {
+    pub fn insert_with_arg_one<T: 'static + ToMetaFactory>(&mut self, id: &str, arg_source: &str, value: T) {
         self.finalize_with_args_one(
             id,
             value.to_metafactory(),
@@ -72,7 +72,7 @@ impl Registry {
         );
     }
 
-    pub fn insert_one_of<T: ToMetaFactory>(&mut self, collection_id: &str, id: &str, value: T) {
+    pub fn insert_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, id: &str, value: T) {
         self.finalize_with_args_one_of(
             collection_id,
             id,
@@ -81,7 +81,7 @@ impl Registry {
         );
     }
 
-    pub fn insert_with_args_one_of<T: ToMetaFactory>(&mut self, collection_id: &str, id: &str, arg_sources: &[&str], value: T) {
+    pub fn insert_with_args_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, id: &str, arg_sources: &[&str], value: T) {
         self.finalize_with_args_one_of(
             collection_id,
             id,
@@ -92,7 +92,7 @@ impl Registry {
         );
     }
 
-    pub fn insert_with_arg_one_of<T: ToMetaFactory>(&mut self, collection_id: &str, id: &str, arg_source: &str, value: T) {
+    pub fn insert_with_arg_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, id: &str, arg_source: &str, value: T) {
         self.finalize_with_args_one_of(
             collection_id,
             id,
