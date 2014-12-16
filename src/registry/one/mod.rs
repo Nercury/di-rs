@@ -2,13 +2,13 @@ use metafactory::{ MetaFactory };
 use super::argument_builder::ArgumentBuilder;
 use super::Registry;
 
-pub struct OneParams<'a> {
+pub struct OneParams {
     pub id: String,
-    pub value: Box<MetaFactory + 'a>,
+    pub value: Box<MetaFactory + 'static>,
 }
 
-impl<'a> OneParams<'a> {
-    pub fn new(id: &str, value: Box<MetaFactory + 'a>) -> OneParams<'a> {
+impl OneParams {
+    pub fn new(id: &str, value: Box<MetaFactory + 'static>) -> OneParams {
         OneParams {
             id: id.to_string(),
             value: value,
@@ -18,12 +18,12 @@ impl<'a> OneParams<'a> {
 
 pub struct One<'a> {
     pub finalizer: &'a mut (OneFinalizer + 'a),
-    pub params: OneParams<'a>,
+    pub params: OneParams,
     pub arg_builder: ArgumentBuilder,
 }
 
 impl<'a> One<'a> {
-    pub fn new(finalizer: &'a mut OneFinalizer, id: &str, value: Box<MetaFactory + 'a>) -> One<'a> {
+    pub fn new(finalizer: &'a mut OneFinalizer, id: &str, value: Box<MetaFactory + 'static>) -> One<'a> {
         One {
             finalizer: finalizer,
             params: OneParams {
@@ -72,11 +72,11 @@ impl<'a> One<'a> {
 }
 
 pub trait OneFinalizer {
-    fn finalize_one_of<'a>(&mut self, params: OneParams<'a>, arg_builder: ArgumentBuilder);
+    fn finalize_one_of(&mut self, params: OneParams, arg_builder: ArgumentBuilder);
 }
 
 impl OneFinalizer for Registry {
-    fn finalize_one_of<'a>(&mut self, params: OneParams<'a>, arg_builder: ArgumentBuilder) {
+    fn finalize_one_of(&mut self, params: OneParams, arg_builder: ArgumentBuilder) {
         self.finalize_with_args_one(
             params.id.as_slice(),
             params.value,

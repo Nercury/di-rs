@@ -2,14 +2,14 @@ use metafactory::{ MetaFactory };
 use super::argument_builder::ArgumentBuilder;
 use super::Registry;
 
-pub struct OneOfParams<'a> {
+pub struct OneOfParams {
     pub collection_id: String,
     pub id: String,
-    pub value: Box<MetaFactory + 'a>,
+    pub value: Box<MetaFactory + 'static>,
 }
 
-impl<'a> OneOfParams<'a> {
-    pub fn new(collection_id: &str, id: &str, value: Box<MetaFactory + 'a>) -> OneOfParams<'a> {
+impl OneOfParams {
+    pub fn new(collection_id: &str, id: &str, value: Box<MetaFactory + 'static>) -> OneOfParams {
         OneOfParams {
             collection_id: collection_id.to_string(),
             id: id.to_string(),
@@ -20,19 +20,19 @@ impl<'a> OneOfParams<'a> {
 
 pub struct OneOf<'a> {
     pub finalizer: &'a mut (OneOfFinalizer + 'a),
-    pub params: OneOfParams<'a>,
+    pub params: OneOfParams,
     pub arg_builder: ArgumentBuilder,
 }
 
 impl<'a> OneOf<'a> {
-    pub fn new(finalizer: &'a mut OneOfFinalizer, collection_id: &str, id: &str, value: Box<MetaFactory + 'a>) -> OneOf<'a> {
+    pub fn new(finalizer: &'a mut OneOfFinalizer, collection_id: &str, id: &str, value: Box<MetaFactory + 'static>) -> OneOf<'a> {
         OneOf {
             finalizer: finalizer,
-            params: OneOfParams {
-                collection_id: collection_id.to_string(),
-                id: id.to_string(),
-                value: value,
-            },
+            params: OneOfParams::new(
+                collection_id,
+                id,
+                value
+            ),
             arg_builder: ArgumentBuilder::new(),
         }
     }
@@ -75,11 +75,11 @@ impl<'a> OneOf<'a> {
 }
 
 pub trait OneOfFinalizer {
-    fn finalize_one_of<'a>(&mut self, params: OneOfParams<'a>, arg_builder: ArgumentBuilder);
+    fn finalize_one_of(&mut self, params: OneOfParams, arg_builder: ArgumentBuilder);
 }
 
 impl OneOfFinalizer for Registry {
-    fn finalize_one_of<'a>(&mut self, params: OneOfParams<'a>, arg_builder: ArgumentBuilder) {
+    fn finalize_one_of(&mut self, params: OneOfParams, arg_builder: ArgumentBuilder) {
         self.finalize_with_args_one_of(
             params.collection_id.as_slice(),
             params.id.as_slice(),

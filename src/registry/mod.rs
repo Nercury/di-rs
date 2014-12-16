@@ -1,36 +1,47 @@
-use std::collections::BTreeSet;
+use std::collections::{ BTreeSet, BTreeMap };
 
-use typedef::TypeDef;
 use metafactory::{ ToMetaFactory, MetaFactory };
-//use self::definition::{ Definitions };
 
 use self::one_of::{ OneOf };
 use self::one::{ One };
-use self::group_candidate::{ GroupCandidate };
+use self::group_candidate::{ GroupCandidateKey, GroupCandidate };
+use self::definition_candidate::{ DefinitionCandidate };
 
 mod group_candidate;
+mod definition_candidate;
 
 pub mod argument_builder;
-//pub mod definition;
 pub mod one_of;
 pub mod one;
 
 pub struct Registry {
-    maybe_groups: BTreeSet<GroupCandidate>,
+    maybe_groups: BTreeMap<GroupCandidateKey, GroupCandidate>,
+    maybe_definitions: BTreeSet<DefinitionCandidate>,
 }
 
 impl Registry {
     pub fn new() -> Registry {
-        Registry { maybe_groups: BTreeSet::new() }
+        Registry {
+            maybe_groups: BTreeMap::new(),
+            maybe_definitions: BTreeSet::new(),
+        }
+    }
+
+    pub fn has_many<T: 'static>(&mut self, collection_id: &str) {
+        let group_candidate_key = GroupCandidateKey::new::<T>(collection_id);
+        if !self.maybe_groups.contains_key(&group_candidate_key) {
+            self.maybe_groups.insert(
+                group_candidate_key,
+                GroupCandidate::new::<T>()
+            );
+        }
     }
 
     pub fn one_of<'r, T: 'static + ToMetaFactory>(&'r mut self, collection_id: &str, id: &str, value: T)
         -> OneOf<'r>
     {
-        let group_candidate = GroupCandidate::new::<T>(collection_id);
-        if !self.maybe_groups.contains(&group_candidate) {
-            self.maybe_groups.insert(group_candidate);
-        }
+        self.has_many::<T>(collection_id);
+
         OneOf::new(
             self,
             collection_id,
@@ -108,11 +119,25 @@ impl Registry {
         );
     }
 
-    fn finalize_with_args_one<'r>(&mut self, _id: &str, _value: Box<MetaFactory + 'r>, _args: Vec<String>) {
-
+    fn finalize_with_args_one(&mut self, id: &str, value: Box<MetaFactory + 'static>, args: Vec<String>) {
+        self.maybe_definitions.insert(
+            DefinitionCandidate::new(
+                id,
+                None,
+                value,
+                args
+            )
+        );
     }
 
-    fn finalize_with_args_one_of<'r>(&mut self, _collection_id: &str, _id: &str, _value: Box<MetaFactory + 'r>, _args: Vec<String>) {
-
+    fn finalize_with_args_one_of(&mut self, collection_id: &str, id: &str, value: Box<MetaFactory + 'static>, args: Vec<String>) {
+        self.maybe_definitions.insert(
+            DefinitionCandidate::new(
+                id,
+                Some(collection_id),
+                value,
+                args
+            )
+        );
     }
 }
