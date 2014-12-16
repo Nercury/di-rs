@@ -3,6 +3,10 @@ extern crate di;
 fn main() {
     let mut registry = di::registry::Registry::new();
     registry
+        .has_many::<|String|:'static -> String>("printers")
+    ;
+
+    registry
         .one_of("printers", "first_printer", |name: String| {
             |val: &str| println!("{}, {}", name, val);
         })
@@ -29,7 +33,7 @@ fn main() {
     registry.insert_one("first_name", "Printer One");
     registry.one("second_name", "Printer Second").insert();
 
-    // let container = di::Container::new(registry);
+    let maybe_container = registry.compile();
     //
     // let source = container.source_of_many::<|| -> ()>("printers");
     // let printers = source.new();

@@ -21,10 +21,16 @@ pub struct Registry {
 
 impl Registry {
     pub fn new() -> Registry {
-        Registry {
+        let mut registry = Registry {
             maybe_groups: BTreeMap::new(),
             maybe_definitions: BTreeSet::new(),
-        }
+        };
+
+        registry
+    }
+
+    pub fn compile(&self) -> () {
+        
     }
 
     pub fn has_many<T: 'static>(&mut self, collection_id: &str) {
