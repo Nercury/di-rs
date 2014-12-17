@@ -1,11 +1,15 @@
-use std::collections::{ BTreeSet, BTreeMap };
+use std::any::Any;
+use std::collections::{ BTreeMap, HashMap };
+use std::collections::btree_map::{ Occupied, Vacant };
 
 use metafactory::{ ToMetaFactory, MetaFactory };
+
+use super::container::Container;
 
 use self::one_of::{ OneOf };
 use self::one::{ One };
 use self::group_candidate::{ GroupCandidateKey, GroupCandidate };
-use self::definition_candidate::{ DefinitionCandidate };
+use self::definition_candidate::{ DefinitionCandidateKey, DefinitionCandidate };
 
 mod group_candidate;
 mod definition_candidate;
@@ -15,22 +19,32 @@ pub mod one_of;
 pub mod one;
 
 pub struct Registry {
+    /// Contains a list of group candidates that are unique for
+    /// id+type.
     maybe_groups: BTreeMap<GroupCandidateKey, GroupCandidate>,
-    maybe_definitions: BTreeSet<DefinitionCandidate>,
+    /// Contains a list of definition candidates that are unique for
+    /// id+collection_id+type.
+    maybe_definitions: BTreeMap<DefinitionCandidateKey, DefinitionCandidate>,
+    /// Contains a list of definitions that were overriden while building
+    /// the registry - so we can at least show some kind of warning.
+    overriden_definitions: BTreeMap<DefinitionCandidateKey, Vec<DefinitionCandidate>>,
 }
 
 impl Registry {
     pub fn new() -> Registry {
         let mut registry = Registry {
             maybe_groups: BTreeMap::new(),
-            maybe_definitions: BTreeSet::new(),
+            maybe_definitions: BTreeMap::new(),
+            overriden_definitions: BTreeMap::new(),
         };
 
         registry
     }
 
-    pub fn compile(&self) -> () {
-        
+    pub fn compile(&self) -> Container {
+        let factory_map = HashMap::<String, Box<Any>>::new();
+
+        Container::new(factory_map)
     }
 
     pub fn has_many<T: 'static>(&mut self, collection_id: &str) {
@@ -67,7 +81,8 @@ impl Registry {
     }
 
     pub fn insert_one<T: 'static + ToMetaFactory>(&mut self, id: &str, value: T) {
-        self.finalize_with_args_one(
+        self.finalize(
+            None,
             id,
             value.to_metafactory(),
             Vec::new()
@@ -75,7 +90,8 @@ impl Registry {
     }
 
     pub fn insert_with_args_one<T: 'static + ToMetaFactory>(&mut self, id: &str, arg_sources: &[&str], value: T) {
-        self.finalize_with_args_one(
+        self.finalize(
+            None,
             id,
             value.to_metafactory(),
             arg_sources.iter()
@@ -85,7 +101,8 @@ impl Registry {
     }
 
     pub fn insert_with_arg_one<T: 'static + ToMetaFactory>(&mut self, id: &str, arg_source: &str, value: T) {
-        self.finalize_with_args_one(
+        self.finalize(
+            None,
             id,
             value.to_metafactory(),
             [arg_source].iter()
@@ -95,8 +112,8 @@ impl Registry {
     }
 
     pub fn insert_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, id: &str, value: T) {
-        self.finalize_with_args_one_of(
-            collection_id,
+        self.finalize(
+            Some(collection_id),
             id,
             value.to_metafactory(),
             Vec::new()
@@ -104,8 +121,8 @@ impl Registry {
     }
 
     pub fn insert_with_args_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, id: &str, arg_sources: &[&str], value: T) {
-        self.finalize_with_args_one_of(
-            collection_id,
+        self.finalize(
+            Some(collection_id),
             id,
             value.to_metafactory(),
             arg_sources.iter()
@@ -115,8 +132,8 @@ impl Registry {
     }
 
     pub fn insert_with_arg_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, id: &str, arg_source: &str, value: T) {
-        self.finalize_with_args_one_of(
-            collection_id,
+        self.finalize(
+            Some(collection_id),
             id,
             value.to_metafactory(),
             [arg_source].iter()
@@ -125,25 +142,28 @@ impl Registry {
         );
     }
 
-    fn finalize_with_args_one(&mut self, id: &str, value: Box<MetaFactory + 'static>, args: Vec<String>) {
-        self.maybe_definitions.insert(
-            DefinitionCandidate::new(
-                id,
-                None,
-                value,
-                args
-            )
+    fn finalize(&mut self, collection_id: Option<&str>, id: &str, value: Box<MetaFactory + 'static>, args: Vec<String>) {
+        let candidate_key = DefinitionCandidateKey::new(
+            id,
+            collection_id,
+            value.get_type().get_str()
         );
-    }
 
-    fn finalize_with_args_one_of(&mut self, collection_id: &str, id: &str, value: Box<MetaFactory + 'static>, args: Vec<String>) {
+        if let Some(overriden_candidate) = self.maybe_definitions.remove(&candidate_key) {
+            match self.overriden_definitions.entry(candidate_key.clone()) {
+                Vacant(entry) => { entry.set(vec![overriden_candidate]); },
+                Occupied(mut entry) => { entry.get_mut().push(overriden_candidate); },
+            };
+        }
+
+        let candidate = DefinitionCandidate::new(
+            value,
+            args
+        );
+
         self.maybe_definitions.insert(
-            DefinitionCandidate::new(
-                id,
-                Some(collection_id),
-                value,
-                args
-            )
+            candidate_key,
+            candidate
         );
     }
 }

@@ -15,16 +15,5 @@ use std::kinds::marker;
 
 mod macros;
 pub mod registry;
+pub mod container;
 pub mod factory_container;
-
-pub struct Container {
-    _marker: marker::NoCopy,
-}
-
-impl Container {
-    pub fn new() -> Container {
-        Container {
-            _marker: marker::NoCopy,
-        }
-    }
-}

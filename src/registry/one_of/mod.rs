@@ -19,15 +19,15 @@ impl OneOfParams {
 }
 
 pub struct OneOf<'a> {
-    pub finalizer: &'a mut (OneOfFinalizer + 'a),
+    pub registry: &'a mut Registry,
     pub params: OneOfParams,
     pub arg_builder: ArgumentBuilder,
 }
 
 impl<'a> OneOf<'a> {
-    pub fn new(finalizer: &'a mut OneOfFinalizer, collection_id: &str, id: &str, value: Box<MetaFactory + 'static>) -> OneOf<'a> {
+    pub fn new(registry: &'a mut Registry, collection_id: &str, id: &str, value: Box<MetaFactory + 'static>) -> OneOf<'a> {
         OneOf {
-            finalizer: finalizer,
+            registry: registry,
             params: OneOfParams::new(
                 collection_id,
                 id,
@@ -67,24 +67,14 @@ impl<'a> OneOf<'a> {
         self
     }
 
-    pub fn insert(self) -> &'a mut (OneOfFinalizer + 'a) {
-        let finalizer = self.finalizer;
-        finalizer.finalize_one_of(self.params, self.arg_builder);
-        finalizer
-    }
-}
-
-pub trait OneOfFinalizer {
-    fn finalize_one_of(&mut self, params: OneOfParams, arg_builder: ArgumentBuilder);
-}
-
-impl OneOfFinalizer for Registry {
-    fn finalize_one_of(&mut self, params: OneOfParams, arg_builder: ArgumentBuilder) {
-        self.finalize_with_args_one_of(
-            params.collection_id.as_slice(),
-            params.id.as_slice(),
-            params.value,
-            arg_builder.arg_sources
+    pub fn insert(self) -> &'a mut Registry {
+        let registry = self.registry;
+        registry.finalize(
+            Some(self.params.collection_id.as_slice()),
+            self.params.id.as_slice(),
+            self.params.value,
+            self.arg_builder.arg_sources
         );
+        registry
     }
 }

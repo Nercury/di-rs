@@ -17,15 +17,15 @@ impl OneParams {
 }
 
 pub struct One<'a> {
-    pub finalizer: &'a mut (OneFinalizer + 'a),
+    pub registry: &'a mut Registry,
     pub params: OneParams,
     pub arg_builder: ArgumentBuilder,
 }
 
 impl<'a> One<'a> {
-    pub fn new(finalizer: &'a mut OneFinalizer, id: &str, value: Box<MetaFactory + 'static>) -> One<'a> {
+    pub fn new(registry: &'a mut Registry, id: &str, value: Box<MetaFactory + 'static>) -> One<'a> {
         One {
-            finalizer: finalizer,
+            registry: registry,
             params: OneParams {
                 id: id.to_string(),
                 value: value,
@@ -64,23 +64,14 @@ impl<'a> One<'a> {
         self
     }
 
-    pub fn insert(self) -> &'a mut (OneFinalizer + 'a) {
-        let finalizer = self.finalizer;
-        finalizer.finalize_one_of(self.params, self.arg_builder);
-        finalizer
-    }
-}
-
-pub trait OneFinalizer {
-    fn finalize_one_of(&mut self, params: OneParams, arg_builder: ArgumentBuilder);
-}
-
-impl OneFinalizer for Registry {
-    fn finalize_one_of(&mut self, params: OneParams, arg_builder: ArgumentBuilder) {
-        self.finalize_with_args_one(
-            params.id.as_slice(),
-            params.value,
-            arg_builder.arg_sources
+    pub fn insert(self) -> &'a mut Registry {
+        let registry = self.registry;
+        registry.finalize(
+            None,
+            self.params.id.as_slice(),
+            self.params.value,
+            self.arg_builder.arg_sources
         );
+        registry
     }
 }
