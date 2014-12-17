@@ -33,7 +33,7 @@ fn main() {
     registry.insert_one("first_name", "Printer One");
     registry.one("second_name", "Printer Second").insert();
 
-    let maybe_container = registry.compile();
+    //let maybe_container = registry.compile();
     //
     // let source = container.source_of_many::<|| -> ()>("printers");
     // let printers = source.new();

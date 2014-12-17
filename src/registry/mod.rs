@@ -43,11 +43,35 @@ impl Registry {
         registry
     }
 
-    pub fn compile(&self) -> Container {
+    fn validate_no_overrides(&self, error_summary: &mut Vec<CompileError>) {
+        for (overriden_definition_key, candidates) in self.overriden_definitions.iter() {
+            let key = overriden_definition_key;
+            if let Some(added_candidate) = self.maybe_definitions.get(key) {
+                error_summary.push(
+                    CompileError::DuplicateDefinitions(
+                        DuplicateDefinitions::new(
+                            key,
+                            candidates,
+                            added_candidate
+                        )
+                    )
+                );
+            }
+        }
+    }
+
+    pub fn compile(&self) -> Result<Container, Vec<CompileError>> {
         let mut error_summary = Vec::<CompileError>::new();
+
+        self.validate_no_overrides(&mut error_summary);
+
         let factory_map = HashMap::<String, Box<Any>>::new();
 
-        Container::new(factory_map)
+        if error_summary.len() == 0 {
+            Ok(Container::new(factory_map))
+        } else {
+            Err(error_summary)
+        }
     }
 
     pub fn has_many<T: 'static>(&mut self, collection_id: &str) {

@@ -8,6 +8,7 @@
 #![feature(default_type_params)]
 #![feature(macro_rules)]
 
+extern crate term;
 extern crate typedef;
 extern crate metafactory;
 
@@ -15,5 +16,6 @@ use std::kinds::marker;
 
 mod macros;
 pub mod registry;
+pub mod error_printer;
 pub mod container;
 pub mod factory_container;

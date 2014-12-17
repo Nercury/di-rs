@@ -67,14 +67,14 @@ fn argument_hash_for_candidate(candidate: &DefinitionCandidate) -> String {
 
 impl DuplicateDefinitions {
     pub fn new(
-        key: DefinitionCandidateKey,
-        overriden: Vec<DefinitionCandidate>,
-        added: DefinitionCandidate
+        key: &DefinitionCandidateKey,
+        overriden: &Vec<DefinitionCandidate>,
+        added: &DefinitionCandidate
     )
         -> DuplicateDefinitions
     {
         let added = Definition::from_key_and_candidate(
-            &key, &added
+            key, added
         );
 
         let mut aliases = HashMap::<String, Duplicate>::new();
@@ -85,7 +85,7 @@ impl DuplicateDefinitions {
                 Vacant(entry) => {
                     entry.set(Duplicate {
                         definition: Definition::from_key_and_candidate(
-                            &key, overriden_candidate
+                            key, overriden_candidate
                         ),
                         count: 1,
                     });
