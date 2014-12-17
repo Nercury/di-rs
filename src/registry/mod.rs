@@ -10,6 +10,7 @@ use self::one_of::{ OneOf };
 use self::one::{ One };
 use self::group_candidate::{ GroupCandidateKey, GroupCandidate };
 use self::definition_candidate::{ DefinitionCandidateKey, DefinitionCandidate };
+use self::error::{ CompileError, DuplicateDefinitions };
 
 mod group_candidate;
 mod definition_candidate;
@@ -17,6 +18,7 @@ mod definition_candidate;
 pub mod argument_builder;
 pub mod one_of;
 pub mod one;
+pub mod error;
 
 pub struct Registry {
     /// Contains a list of group candidates that are unique for
@@ -42,6 +44,7 @@ impl Registry {
     }
 
     pub fn compile(&self) -> Container {
+        let mut error_summary = Vec::<CompileError>::new();
         let factory_map = HashMap::<String, Box<Any>>::new();
 
         Container::new(factory_map)

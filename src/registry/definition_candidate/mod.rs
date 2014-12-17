@@ -3,15 +3,15 @@ use metafactory::MetaFactory;
 
 #[deriving(Ord, Eq, PartialEq, PartialOrd, Clone)]
 pub struct DefinitionCandidateKey {
-    id: String,
-    type_name: &'static str,
-    collection_id: Option<String>,
+    pub id: String,
+    pub type_name: &'static str,
+    pub collection_id: Option<String>,
 }
 
 /// Definition candidate.
 pub struct DefinitionCandidate {
-    metafactory: Box<MetaFactory + 'static>,
-    arg_sources: Vec<String>,
+    pub metafactory: Box<MetaFactory + 'static>,
+    pub arg_sources: Vec<String>,
 }
 
 impl DefinitionCandidateKey {
