@@ -1,77 +1,70 @@
 use term;
 use super::registry::error;
 
+mod pretty_terminal;
+
+pub trait ErrorWriter {
+    fn error(&mut self, m: &str);
+    fn definition(&mut self, m: &str);
+    fn module(&mut self, m: &str);
+    fn typename(&mut self, m: &str);
+    fn number(&mut self, m: &str);
+    fn operator(&mut self, m: &str);
+    fn layout(&mut self, m: &str);
+    fn text(&mut self, m: &str);
+    fn eol(&mut self);
+    fn flush(&mut self);
+}
+
 pub fn pretty_print(errors: &Vec<error::CompileError>) {
+    let mut writer = pretty_terminal::PrettyTerminalOutput::new();
     for error in errors.iter() {
-        pretty_print_single(error);
+        pretty_print_single(&mut writer, error);
     }
 }
 
-pub fn pretty_print_single(error: &error::CompileError) {
+pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
     match error {
         &error::CompileError::DuplicateDefinitions(ref error) => {
-            let mut t = term::stdout().unwrap();
-
-            t.fg(term::color::BRIGHT_RED).unwrap();
-            (write!(t, "Error: ")).unwrap();
-            t.reset().unwrap();
-
-            t.fg(term::color::BRIGHT_YELLOW).unwrap();
-            (write!(t, "{}", format_definition(&error.added))).unwrap();
-            t.reset().unwrap();
-
-            (write!(t, " hides previously defined:")).unwrap();
-
-            t.flush();
-
-            println!("");
+            w.error("Error: ");
+            pretty_print_definition(w, &error.added);
+            w.text(" hides previously defined:");
+            w.eol();
 
             for (_, duplicate) in error.aliases.iter() {
-                t.fg(term::color::BRIGHT_YELLOW).unwrap();
-                (write!(t, " |> ")).unwrap();
-                t.reset().unwrap();
-
-                t.fg(term::color::MAGENTA).unwrap();
-                (write!(t, "{}", duplicate.count)).unwrap();
-                t.reset().unwrap();
-
-                (write!(t, " of ")).unwrap();
-
-                t.fg(term::color::BRIGHT_YELLOW).unwrap();
-                (write!(t, "{}", format_definition(&duplicate.definition))).unwrap();
-                t.reset().unwrap();
-
-                t.flush();
-
-                println!("");
+                w.layout(" |> ");
+                w.number(format!("{}", duplicate.count).as_slice());
+                w.text(" of ");
+                pretty_print_definition(w, &duplicate.definition);
+                w.eol();
             }
         }
     }
 }
 
-pub fn format_definition(definition: &error::Definition) -> String {
-    let mut result = String::new();
-    result.push_str(definition.id.as_slice());
+pub fn pretty_print_definition(w: &mut ErrorWriter, definition: &error::Definition) {
+    w.definition(definition.id.as_slice());
 
-    let argument_str = definition.args.iter()
-        .map(|&:a| {
-            let mut argument_with_type = String::new();
-            argument_with_type.push_str(a.source.as_slice());
-            argument_with_type.push_str(": ");
-            argument_with_type.push_str(a.typedef.get_str());
-            argument_with_type
-        })
-        .collect::<Vec<String>>()
-        .connect(", ");
+    let argc = definition.args.len();
+    if argc > 0 {
+        w.text(" (");
 
-    if argument_str.len() > 0 {
-        result.push_str(" (");
-        result.push_str(argument_str.as_slice());
-        result.push(')');
+        let mut index = 0;
+
+        for arg in definition.args.iter() {
+            w.definition(arg.source.as_slice());
+            w.text(": ");
+            w.typename(arg.typedef.get_str());
+
+            index += 1;
+            if index < argc {
+                w.text(", ");
+            }
+        }
+
+        w.text(")");
     }
 
-    result.push_str(" -> ");
-    result.push_str(definition.typedef.get_str());
-
-    result
+    w.operator(" -> ");
+    w.typename(definition.typedef.get_str());
 }
