@@ -4,7 +4,7 @@ use std::collections::btree_map::{ Occupied, Vacant };
 
 use metafactory::{ ToMetaFactory, MetaFactory };
 
-use super::container::Container;
+use container::Container;
 
 use self::one_of::{ OneOf };
 use self::one::{ One };

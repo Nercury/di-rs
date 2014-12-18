@@ -1,6 +1,6 @@
-use super::super::error; // Very super error.
-use super::super::Registry;
-use super::super::definition_candidate::DefinitionCandidate;
+use registry::error;
+use registry::Registry;
+use registry::definition_candidate::DefinitionCandidate;
 
 use super::Validator;
 

@@ -1,5 +1,5 @@
 use term;
-use super::registry::error;
+use registry::error;
 
 mod pretty_terminal;
 

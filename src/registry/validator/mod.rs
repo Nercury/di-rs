@@ -1,5 +1,5 @@
-use super::error; // Super error.
-use super::Registry;
+use registry::error;
+use registry::Registry;
 
 pub mod overrides;
 

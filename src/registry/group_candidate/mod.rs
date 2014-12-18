@@ -1,6 +1,6 @@
 use typedef::TypeDef;
 
-use super::super::factory_container::FactoryContainer;
+use factory_container::FactoryContainer;
 
 /// Group candidate unique key.
 #[deriving(Ord, Eq, PartialEq, PartialOrd)]

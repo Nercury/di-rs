@@ -1,6 +1,6 @@
 use metafactory::{ MetaFactory };
-use super::argument_builder::ArgumentBuilder;
-use super::Registry;
+use registry::argument_builder::ArgumentBuilder;
+use registry::Registry;
 
 pub struct OneParams {
     pub id: String,

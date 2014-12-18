@@ -2,7 +2,7 @@ use typedef::TypeDef;
 use std::collections::HashMap;
 use std::collections::hash_map::{ Occupied, Vacant };
 
-use super::definition_candidate::{ DefinitionCandidateKey, DefinitionCandidate };
+use registry::definition_candidate::{ DefinitionCandidateKey, DefinitionCandidate };
 
 pub struct Argument {
     pub typedef: TypeDef,
