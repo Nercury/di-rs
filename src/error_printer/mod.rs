@@ -1,4 +1,3 @@
-use term;
 use registry::error;
 
 mod pretty_terminal;

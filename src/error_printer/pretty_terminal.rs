@@ -96,6 +96,6 @@ impl ErrorWriter for PrettyTerminalOutput {
     }
 
     fn flush(&mut self) {
-        self.t.flush();
+        self.t.flush().unwrap();
     }
 }

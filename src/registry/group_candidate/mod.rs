@@ -19,11 +19,13 @@ impl GroupCandidateKey {
 }
 
 /// Group candidate value.
+#[allow(dead_code)]
 pub struct GroupCandidate {
     collection_typedef: TypeDef,
     factory: FactoryContainer<'static>,
 }
 
+#[allow(dead_code)]
 impl GroupCandidate {
     pub fn new<T:'static>() -> GroupCandidate {
         let collection_typedef = FactoryContainer::container_of::<T>();

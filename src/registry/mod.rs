@@ -10,7 +10,7 @@ use self::one_of::{ OneOf };
 use self::one::{ One };
 use self::group_candidate::{ GroupCandidateKey, GroupCandidate };
 use self::definition_candidate::{ DefinitionCandidateKey, DefinitionCandidate };
-use self::error::{ CompileError, DuplicateDefinitions };
+use self::error::{ CompileError };
 
 mod group_candidate;
 mod definition_candidate;

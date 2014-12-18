@@ -1,4 +1,3 @@
-use typedef::TypeDef;
 use metafactory::MetaFactory;
 
 #[deriving(Ord, Eq, PartialEq, PartialOrd, Clone)]
