@@ -37,13 +37,11 @@ pub struct Registry {
 
 impl Registry {
     pub fn new() -> Registry {
-        let mut validators = Vec::new();
-
         let mut registry = Registry {
             maybe_groups: BTreeMap::new(),
             maybe_definitions: BTreeMap::new(),
             overriden_definitions: BTreeMap::new(),
-            validators: validators,
+            validators: Vec::new(),
         };
 
         registry.push_validator(validator::overrides::NoOverridesValidator);
