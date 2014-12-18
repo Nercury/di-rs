@@ -27,8 +27,12 @@ pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
     match error {
         &error::CompileError::DuplicateDefinitions(ref error) => {
             w.error("Error: ");
-            pretty_print_definition(w, &error.added);
-            w.text(" hides previously defined:");
+            w.text("the name ");
+            w.definition(
+                error.aliases.values().next().unwrap()
+                    .definition.id.as_slice()
+            );
+            w.text(" is not unique:");
             w.eol();
 
             for (_, duplicate) in error.aliases.iter() {

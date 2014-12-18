@@ -46,13 +46,19 @@ impl Registry {
     fn validate_no_overrides(&self, error_summary: &mut Vec<CompileError>) {
         for (overriden_definition_key, candidates) in self.overriden_definitions.iter() {
             let key = overriden_definition_key;
+
+            let mut duplicates = candidates.iter()
+                .map(|c| c)
+                .collect::<Vec<&DefinitionCandidate>>();
+
             if let Some(added_candidate) = self.maybe_definitions.get(key) {
+                duplicates.push(added_candidate);
+
                 error_summary.push(
                     CompileError::DuplicateDefinitions(
                         DuplicateDefinitions::new(
                             key,
-                            candidates,
-                            added_candidate
+                            &duplicates
                         )
                     )
                 );

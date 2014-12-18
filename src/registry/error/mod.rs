@@ -39,7 +39,6 @@ pub struct Duplicate {
 
 pub struct DuplicateDefinitions {
     pub aliases: HashMap<String, Duplicate>,
-    pub added: Definition,
 }
 
 fn arguments_from_candidate(candidate: &DefinitionCandidate) -> Vec<Argument> {
@@ -68,24 +67,19 @@ fn argument_hash_for_candidate(candidate: &DefinitionCandidate) -> String {
 impl DuplicateDefinitions {
     pub fn new(
         key: &DefinitionCandidateKey,
-        overriden: &Vec<DefinitionCandidate>,
-        added: &DefinitionCandidate
+        duplicates: &Vec<&DefinitionCandidate>
     )
         -> DuplicateDefinitions
     {
-        let added = Definition::from_key_and_candidate(
-            key, added
-        );
-
         let mut aliases = HashMap::<String, Duplicate>::new();
 
-        for overriden_candidate in overriden.iter() {
-            let hash = argument_hash_for_candidate(overriden_candidate);
+        for duplicate in duplicates.iter() {
+            let hash = argument_hash_for_candidate(*duplicate);
             match aliases.entry(hash) {
                 Vacant(entry) => {
                     entry.set(Duplicate {
                         definition: Definition::from_key_and_candidate(
-                            key, overriden_candidate
+                            key, *duplicate
                         ),
                         count: 1,
                     });
@@ -97,7 +91,6 @@ impl DuplicateDefinitions {
         }
 
         DuplicateDefinitions {
-            added: added,
             aliases: aliases,
         }
     }
