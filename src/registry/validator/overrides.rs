@@ -8,8 +8,7 @@ pub struct NoOverridesValidator;
 
 impl Validator for NoOverridesValidator {
     fn validate(&self, registry: &Registry, error_summary: &mut Vec<error::CompileError>) {
-        for (candidate_key, candidates) in registry.overriden_definitions.iter() {
-            let key = candidate_key;
+        for (key, candidates) in registry.overriden_definitions.iter() {
 
             let mut duplicates = candidates.iter()
                 .map(|c| c)
