@@ -19,6 +19,7 @@ pub mod argument_builder;
 pub mod one_of;
 pub mod one;
 pub mod error;
+pub mod validator;
 
 pub struct Registry {
     /// Contains a list of group candidates that are unique for
@@ -30,46 +31,39 @@ pub struct Registry {
     /// Contains a list of definitions that were overriden while building
     /// the registry - so we can at least show some kind of warning.
     overriden_definitions: BTreeMap<DefinitionCandidateKey, Vec<DefinitionCandidate>>,
+
+    validators: Vec<Box<validator::Validator + 'static>>,
 }
 
 impl Registry {
     pub fn new() -> Registry {
+        let mut validators = Vec::new();
+
         let mut registry = Registry {
             maybe_groups: BTreeMap::new(),
             maybe_definitions: BTreeMap::new(),
             overriden_definitions: BTreeMap::new(),
+            validators: validators,
         };
+
+        registry.push_validator(validator::overrides::NoOverridesValidator);
 
         registry
     }
 
-    fn validate_no_overrides(&self, error_summary: &mut Vec<CompileError>) {
-        for (overriden_definition_key, candidates) in self.overriden_definitions.iter() {
-            let key = overriden_definition_key;
-
-            let mut duplicates = candidates.iter()
-                .map(|c| c)
-                .collect::<Vec<&DefinitionCandidate>>();
-
-            if let Some(added_candidate) = self.maybe_definitions.get(key) {
-                duplicates.push(added_candidate);
-
-                error_summary.push(
-                    CompileError::DuplicateDefinitions(
-                        DuplicateDefinitions::new(
-                            key,
-                            &duplicates
-                        )
-                    )
-                );
-            }
-        }
+    pub fn push_validator<T: validator::Validator + 'static>(
+        &mut self,
+        validator: T
+    ) {
+        self.validators.push(box validator);
     }
 
     pub fn compile(&self) -> Result<Container, Vec<CompileError>> {
         let mut error_summary = Vec::<CompileError>::new();
 
-        self.validate_no_overrides(&mut error_summary);
+        for validator in self.validators.iter() {
+            validator.validate(self, &mut error_summary);
+        }
 
         let factory_map = HashMap::<String, Box<Any>>::new();
 
