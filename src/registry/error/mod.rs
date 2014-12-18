@@ -4,11 +4,13 @@ use std::collections::hash_map::{ Occupied, Vacant };
 
 use registry::definition_candidate::{ DefinitionCandidateKey, DefinitionCandidate };
 
+#[deriving(Clone)]
 pub struct Argument {
     pub typedef: TypeDef,
     pub source: String,
 }
 
+#[deriving(Clone)]
 pub struct Definition {
     pub id: String,
     pub collection_id: Option<String>,
@@ -32,6 +34,7 @@ impl Definition {
     }
 }
 
+#[deriving(Clone)]
 pub struct Duplicate {
     pub definition: Definition,
     pub count: uint,
