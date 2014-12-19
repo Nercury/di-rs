@@ -15,7 +15,7 @@ macro_rules! expr_cmp_many(
             ordering => ordering,
         }
     );
-)
+);
 
 macro_rules! expr_partial_cmp_many(
     ({ $this:expr, $other:expr }) => ($this.partial_cmp($other));
@@ -27,13 +27,13 @@ macro_rules! expr_partial_cmp_many(
             test => test,
         }
     );
-)
+);
 
 macro_rules! expr_eq_many(
     ($({ $this:expr, $other:expr }),+) => (
         $($this.eq($other)) && +
     );
-)
+);
 
 macro_rules! ord_for(
     ($Struct:ty { $($field:ident),+ }) => (
@@ -54,4 +54,4 @@ macro_rules! ord_for(
             }
         }
     );
-)
+);
