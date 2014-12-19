@@ -33,7 +33,7 @@ impl Validator for NoOverridesValidator {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     use registry::Registry;
     use registry::error;
@@ -126,7 +126,7 @@ mod test {
         assert!(aliases.get(1).unwrap().count == 1);
     }
 
-    fn aliases_to_vec(aliases: &HashMap<String, error::Duplicate>) -> Vec<error::Duplicate> {
+    fn aliases_to_vec(aliases: &BTreeMap<String, error::Duplicate>) -> Vec<error::Duplicate> {
         aliases.values().map(|v| v.clone()).collect()
     }
 

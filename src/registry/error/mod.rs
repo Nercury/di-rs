@@ -1,6 +1,6 @@
 use typedef::TypeDef;
-use std::collections::HashMap;
-use std::collections::hash_map::{ Occupied, Vacant };
+use std::collections::BTreeMap;
+use std::collections::btree_map::{ Occupied, Vacant };
 
 use registry::definition_candidate::{ DefinitionCandidateKey, DefinitionCandidate };
 
@@ -41,7 +41,7 @@ pub struct Duplicate {
 }
 
 pub struct DuplicateDefinitions {
-    pub aliases: HashMap<String, Duplicate>,
+    pub aliases: BTreeMap<String, Duplicate>,
 }
 
 fn arguments_from_candidate(candidate: &DefinitionCandidate) -> Vec<Argument> {
@@ -74,7 +74,7 @@ impl DuplicateDefinitions {
     )
         -> DuplicateDefinitions
     {
-        let mut aliases = HashMap::<String, Duplicate>::new();
+        let mut aliases = BTreeMap::<String, Duplicate>::new();
 
         for duplicate in duplicates.iter() {
             let hash = argument_hash_for_candidate(*duplicate);
