@@ -61,6 +61,7 @@ use metafactory::factory::{ Factory, Getter };
 /// }
 /// ```
 pub struct FactoryContainer<'a> {
+    typedef: TypeDef,
     any_getter: Box<Any>,
     do_push_items: |&mut Box<Any>, Vec<Box<Any>>|:'a -> (),
     do_new_factory: |&mut Box<Any>|:'a -> Box<Any>, // Don't worry, it's like Javascript ;)
@@ -70,6 +71,7 @@ impl<'a> FactoryContainer<'a> {
     /// Create new factory container instance for specified type.
     pub fn new<T: 'static>() -> FactoryContainer<'a> {
         FactoryContainer {
+            typedef: TypeDef::of::<T>(),
             any_getter: box FactoryVecGetter::<T>::new(),
             do_push_items: |any_getter, items| {
                 let getter: &mut FactoryVecGetter<T> = any_getter
@@ -89,6 +91,11 @@ impl<'a> FactoryContainer<'a> {
                 box Factory::<Vec<T>>::new(getter.boxed_clone())
             }
         }
+    }
+
+    /// Return factory contained type.
+    pub fn get_arg_type(&self) -> TypeDef {
+        self.typedef.clone()
     }
 
     /// Push factory items into container.

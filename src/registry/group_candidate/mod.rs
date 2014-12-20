@@ -5,7 +5,7 @@ use factory_container::FactoryContainer;
 /// Group candidate unique key.
 #[deriving(Ord, Eq, PartialEq, PartialOrd)]
 pub struct GroupCandidateKey {
-    collection_id: String,
+    pub collection_id: String,
     contained_type_name: &'static str,
 }
 
@@ -21,8 +21,8 @@ impl GroupCandidateKey {
 /// Group candidate value.
 #[allow(dead_code)]
 pub struct GroupCandidate {
-    collection_typedef: TypeDef,
-    factory: FactoryContainer<'static>,
+    pub collection_typedef: TypeDef,
+    pub factory: FactoryContainer<'static>,
 }
 
 #[allow(dead_code)]
