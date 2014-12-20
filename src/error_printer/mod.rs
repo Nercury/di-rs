@@ -42,6 +42,13 @@ pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
                 w.eol();
             }
         },
+        &error::CompileError::DependenciesNotFound(ref error) => {
+            w.error("Error: ");
+            w.definition(error.id.as_slice());
+            w.text(" depends on missing ");
+            print_defs_in_sentence(w, error.missing_dependencies.iter().map(|s| s.clone()).collect());
+            w.eol();
+        },
         &error::CompileError::ArgumentCountMismatch(ref error) => {
             w.error("Error: ");
             w.text("the definition ");
@@ -57,22 +64,11 @@ pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
 
                 if len == 1 {
                     w.text(" does not need extra argument ");
-                    w.definition(
-                        unecessary_sources[0].as_slice()
-                    );
                 } else {
-                    let heads = unecessary_sources[0 .. len - 2];
-                    let middle = &unecessary_sources[len - 2];
-                    let tail = &unecessary_sources[len - 1];
                     w.text(" does not need extra arguments ");
-                    for head in heads.iter() {
-                        w.definition(head.as_slice());
-                        w.text(", ");
-                    }
-                    w.definition(middle.as_slice());
-                    w.text(" and ");
-                    w.definition(tail.as_slice());
                 }
+
+                print_defs_in_sentence(w, unecessary_sources);
             } else {
                 w.text(" has ");
                 w.number(format!("{}", error.arg_types.len() - error.arg_sources.len()).as_slice());
@@ -82,6 +78,27 @@ pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
             }
             w.eol();
         },
+    }
+}
+
+fn print_defs_in_sentence(w: &mut ErrorWriter, names: Vec<String>) {
+    let len = names.len();
+    if len == 1 {
+        w.definition(
+            names[0].as_slice()
+        );
+    } else {
+        let heads = names[0 .. len - 2];
+        let middle = &names[len - 2];
+        let tail = &names[len - 1];
+
+        for head in heads.iter() {
+            w.definition(head.as_slice());
+            w.text(", ");
+        }
+        w.definition(middle.as_slice());
+        w.text(" and ");
+        w.definition(tail.as_slice());
     }
 }
 

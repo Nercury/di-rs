@@ -2,7 +2,8 @@ use registry::error;
 use registry::Registry;
 
 pub mod overrides;
-pub mod arguments;
+pub mod argument_count;
+pub mod dependencies;
 
 pub trait Validator {
     fn validate(

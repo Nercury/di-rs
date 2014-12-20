@@ -1,8 +1,14 @@
 use typedef::TypeDef;
-use std::collections::BTreeMap;
+use std::collections::{ BTreeMap, HashSet };
 use std::collections::btree_map::{ Occupied, Vacant };
 
 use registry::definition_candidate::{ DefinitionCandidateKey, DefinitionCandidate };
+
+pub enum CompileError {
+    DuplicateDefinitions(DuplicateDefinitions),
+    ArgumentCountMismatch(ArgumentCountMismatch),
+    DependenciesNotFound(DependenciesNotFound),
+}
 
 #[deriving(Clone)]
 pub struct Argument {
@@ -40,27 +46,23 @@ pub struct Duplicate {
     pub count: uint,
 }
 
-fn arguments_from_candidate(candidate: &DefinitionCandidate) -> Vec<Argument> {
-    candidate.metafactory.get_arg_types()
-        .iter().zip(candidate.arg_sources.iter())
-        .map(|&: (typedef, source)| Argument {
-            typedef: typedef.clone(),
-            source: source.clone(),
-        })
-        .collect()
+pub struct DependenciesNotFound {
+    pub id: String,
+    pub missing_dependencies: HashSet<String>,
 }
 
-fn argument_hash_for_candidate(candidate: &DefinitionCandidate) -> String {
-    candidate.metafactory.get_arg_types()
-        .iter().zip(candidate.arg_sources.iter())
-        .map(|&: (typedef, source)|
-            [source.as_slice(), typedef.get_str()].connect(":")
-        )
-        .fold(String::new(), |acc, i| {
-            let mut result = acc;
-            result.push_str(i.as_slice());
-            result
-        })
+impl DependenciesNotFound {
+    pub fn new(
+        id: &str,
+        missing_dependencies: HashSet<String>
+    )
+        -> DependenciesNotFound
+    {
+        DependenciesNotFound {
+            id: id.to_string(),
+            missing_dependencies: missing_dependencies,
+        }
+    }
 }
 
 pub struct ArgumentCountMismatch {
@@ -124,7 +126,24 @@ impl DuplicateDefinitions {
     }
 }
 
-pub enum CompileError {
-    DuplicateDefinitions(DuplicateDefinitions),
-    ArgumentCountMismatch(ArgumentCountMismatch),
+fn arguments_from_candidate(candidate: &DefinitionCandidate) -> Vec<Argument> {
+    candidate.metafactory.get_arg_types()
+    .iter().zip(candidate.arg_sources.iter())
+    .map(|&: (typedef, source)| Argument {
+        typedef: typedef.clone(),
+        source: source.clone(),
+    })
+    .collect()
+}
+
+fn argument_hash_for_candidate(candidate: &DefinitionCandidate) -> String {
+    candidate.metafactory.get_arg_types().iter().zip(candidate.arg_sources.iter())
+        .map(|&: (typedef, source)|
+            [source.as_slice(), typedef.get_str()].connect(":")
+        )
+        .fold(String::new(), |acc, i| {
+            let mut result = acc;
+            result.push_str(i.as_slice());
+            result
+        })
 }
