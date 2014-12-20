@@ -5,6 +5,7 @@
 <style>.sidebar { margin-top: 53px }</style>
 */
 
+#![feature(slicing_syntax)]
 #![feature(default_type_params)]
 #![feature(macro_rules)]
 

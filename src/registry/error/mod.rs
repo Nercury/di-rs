@@ -40,10 +40,6 @@ pub struct Duplicate {
     pub count: uint,
 }
 
-pub struct DuplicateDefinitions {
-    pub aliases: BTreeMap<String, Duplicate>,
-}
-
 fn arguments_from_candidate(candidate: &DefinitionCandidate) -> Vec<Argument> {
     candidate.metafactory.get_arg_types()
         .iter().zip(candidate.arg_sources.iter())
@@ -65,6 +61,35 @@ fn argument_hash_for_candidate(candidate: &DefinitionCandidate) -> String {
             result.push_str(i.as_slice());
             result
         })
+}
+
+pub struct ArgumentCountMismatch {
+    pub id: String,
+    pub collection_id: Option<String>,
+    pub typedef: TypeDef,
+    pub arg_types: Vec<TypeDef>,
+    pub arg_sources: Vec<String>,
+}
+
+impl ArgumentCountMismatch {
+    pub fn new(
+        key: &DefinitionCandidateKey,
+        candidate: &DefinitionCandidate
+    )
+        -> ArgumentCountMismatch
+    {
+        ArgumentCountMismatch {
+            id: key.id.clone(),
+            collection_id: key.collection_id.clone(),
+            typedef: candidate.metafactory.get_type(),
+            arg_types: candidate.metafactory.get_arg_types(),
+            arg_sources: candidate.arg_sources.clone(),
+        }
+    }
+}
+
+pub struct DuplicateDefinitions {
+    pub aliases: BTreeMap<String, Duplicate>,
 }
 
 impl DuplicateDefinitions {
@@ -101,4 +126,5 @@ impl DuplicateDefinitions {
 
 pub enum CompileError {
     DuplicateDefinitions(DuplicateDefinitions),
+    ArgumentCountMismatch(ArgumentCountMismatch),
 }

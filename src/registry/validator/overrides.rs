@@ -44,9 +44,7 @@ mod test {
     #[test]
     fn should_not_return_duplicates_for_no_items() {
         let registry = Registry::new();
-        let mut error_summary = Vec::<error::CompileError>::new();
-
-        NoOverridesValidator.validate(&registry, &mut error_summary);
+        let error_summary = validate_and_summarize(&registry);
 
         assert_eq!(error_summary.len(), 0);
     }
@@ -84,11 +82,14 @@ mod test {
 
         let error_summary = validate_and_summarize(&registry);
 
-        let &error::CompileError::DuplicateDefinitions(ref e) = error_summary.get(0).unwrap();
-        let aliases = aliases_to_vec(&e.aliases);
+        if let &error::CompileError::DuplicateDefinitions(ref e) = error_summary.get(0).unwrap() {
+            let aliases = aliases_to_vec(&e.aliases);
 
-        assert_eq!(aliases.len(), 1);
-        assert!(aliases.get(0).unwrap().count == 2);
+            assert_eq!(aliases.len(), 1);
+            assert!(aliases.get(0).unwrap().count == 2);
+        } else {
+            panic!("Expected DuplicateDefinitions error!");
+        }
     }
 
     #[test]
@@ -101,11 +102,14 @@ mod test {
 
         let error_summary = validate_and_summarize(&registry);
 
-        let &error::CompileError::DuplicateDefinitions(ref e) = error_summary.get(0).unwrap();
-        let aliases = aliases_to_vec(&e.aliases);
+        if let &error::CompileError::DuplicateDefinitions(ref e) = error_summary.get(0).unwrap() {
+            let aliases = aliases_to_vec(&e.aliases);
 
-        assert_eq!(aliases.len(), 1);
-        assert!(aliases.get(0).unwrap().count == 2);
+            assert_eq!(aliases.len(), 1);
+            assert!(aliases.get(0).unwrap().count == 2);
+        } else {
+            panic!("Expected DuplicateDefinitions error!");
+        }
     }
 
     #[test]
@@ -118,12 +122,15 @@ mod test {
 
         let error_summary = validate_and_summarize(&registry);
 
-        let &error::CompileError::DuplicateDefinitions(ref e) = error_summary.get(0).unwrap();
-        let aliases = aliases_to_vec(&e.aliases);
+        if let &error::CompileError::DuplicateDefinitions(ref e) = error_summary.get(0).unwrap() {
+            let aliases = aliases_to_vec(&e.aliases);
 
-        assert_eq!(aliases.len(), 2);
-        assert!(aliases.get(0).unwrap().count == 1);
-        assert!(aliases.get(1).unwrap().count == 1);
+            assert_eq!(aliases.len(), 2);
+            assert!(aliases.get(0).unwrap().count == 1);
+            assert!(aliases.get(1).unwrap().count == 1);
+        } else {
+            panic!("Expected DuplicateDefinitions error!");
+        }
     }
 
     fn aliases_to_vec(aliases: &BTreeMap<String, error::Duplicate>) -> Vec<error::Duplicate> {

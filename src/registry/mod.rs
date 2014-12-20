@@ -44,6 +44,7 @@ impl Registry {
             validators: Vec::new(),
         };
 
+        registry.push_validator(validator::argc::ArgumentCountValidator);
         registry.push_validator(validator::overrides::NoOverridesValidator);
 
         registry

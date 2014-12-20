@@ -41,7 +41,69 @@ pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
                 pretty_print_definition(w, &duplicate.definition);
                 w.eol();
             }
-        }
+        },
+        &error::CompileError::ArgumentCountMismatch(ref error) => {
+            w.error("Error: ");
+            w.text("the definition ");
+            w.definition(
+                error.id.as_slice()
+            );
+            if error.arg_sources.len() > error.arg_types.len() {
+                let unecessary_sources: Vec<String> = error.arg_sources.iter()
+                    .skip(error.arg_types.len())
+                    .map(|r| r.clone())
+                    .collect();
+                let len = unecessary_sources.len();
+
+                if len == 1 {
+                    w.text(" does not need extra argument ");
+                    w.definition(
+                        unecessary_sources[0].as_slice()
+                    );
+                } else {
+                    let heads = unecessary_sources[0 .. len - 2];
+                    let middle = &unecessary_sources[len - 2];
+                    let tail = &unecessary_sources[len - 1];
+                    w.text(" does not need extra arguments ");
+                    for head in heads.iter() {
+                        w.definition(head.as_slice());
+                        w.text(", ");
+                    }
+                    w.definition(middle.as_slice());
+                    w.text(" and ");
+                    w.definition(tail.as_slice());
+                }
+            } else {
+                w.text(" has ");
+                w.number(format!("{}", error.arg_types.len() - error.arg_sources.len()).as_slice());
+                w.text(" undefined dependencies:");
+
+                pretty_print_missing_dependencies(w, error);
+            }
+            w.eol();
+        },
+    }
+}
+
+pub fn pretty_print_missing_dependencies(w: &mut ErrorWriter, error: &error::ArgumentCountMismatch) {
+    let arg_sourcesc = error.arg_sources.len();
+
+    for (source, typedef) in error.arg_sources.iter().zip(error.arg_types.iter()) {
+        w.eol();
+        w.layout(" |> ");
+
+        w.definition(source.as_slice());
+        w.text(": ");
+        w.typename(typedef.get_str());
+    }
+
+    for typedef in error.arg_types[arg_sourcesc..error.arg_types.len()].iter() {
+        w.eol();
+        w.layout(" |> ");
+
+        w.error("?");
+        w.text(": ");
+        w.typename(typedef.get_str());
     }
 }
 

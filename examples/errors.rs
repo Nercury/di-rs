@@ -3,28 +3,36 @@ extern crate di;
 fn main() {
     let mut registry = di::registry::Registry::new();
 
-    registry.insert_one("arg", 12i);
-
-    // Define several duplicates.
-
     registry
-        .one("item", |input: int| input)
+        .one("duplicate", |input: int| input)
         .add_arg("arg")
         .insert()
     ;
     registry
-        .one("item", |i: int| i)
+        .one("duplicate", |i: int| i)
         .add_arg("arg")
         .insert()
     ;
     registry
-        .one("item", |_input: &'static str| 4i)
+        .one("duplicate", |_input: &'static str| 4i)
         .add_arg("what")
         .insert()
     ;
     registry
-        .one("item", |input: int, _flag: bool| input)
+        .one("duplicate", |input: int, _flag: bool| input)
         .with_args(&["arg", "cc"])
+        .insert()
+    ;
+
+    registry
+        .one("too_many_dependencies", || "output")
+        .with_args(&["a", "b", "c"])
+        .insert()
+    ;
+
+    registry
+        .one("missing_dependencies", |_ok: i32, _a: int, _b: bool, _c: Vec<String>| "output")
+        .add_arg("ok")
         .insert()
     ;
 
