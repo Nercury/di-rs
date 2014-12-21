@@ -3,7 +3,7 @@ use typedef::TypeDef;
 use factory_container::FactoryContainer;
 
 /// Group candidate unique key.
-#[deriving(Ord, Eq, PartialEq, PartialOrd)]
+#[deriving(Ord, Eq, PartialEq, PartialOrd, Clone)]
 pub struct GroupCandidateKey {
     pub collection_id: String,
     contained_type_name: &'static str,

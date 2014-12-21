@@ -1,11 +1,5 @@
-use std::collections::{ HashMap, HashSet };
-use std::collections::hash_map::{ Occupied, Vacant };
-use typedef::TypeDef;
-
 use registry::error;
 use registry::Registry;
-use registry::definition_candidate::DefinitionCandidate;
-use registry::group_candidate::GroupCandidate;
 
 use super::Validator;
 

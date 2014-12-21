@@ -87,7 +87,9 @@ impl Registry {
     pub fn one_of<'r, T: 'static + ToMetaFactory>(&'r mut self, collection_id: &str, id: &str, value: T)
         -> OneOf<'r>
     {
-        self.has_many::<T>(collection_id);
+        self.has_many::<T>(collection_id); // T is INCORRECT type in this case :/
+
+        // FIXME: need to use metafactory to create factory container.
 
         OneOf::new(
             self,

@@ -49,6 +49,31 @@ pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
             print_defs_in_sentence(w, error.missing_dependencies.iter().map(|s| s.clone()).collect());
             w.eol();
         },
+        &error::CompileError::IncorrectDepencencyTypes(ref error) => {
+            w.error("Error: dependency types ");
+            w.definition(error.id.as_slice());
+            w.eol();
+            let mut index = 0u;
+            let mut mismatched_types = error.mismatched_types.clone();
+            for (typedef, source) in error.arg_types.iter().zip(error.arg_sources.iter()) {
+                let maybe_mismatched_type = mismatched_types.remove(&index);
+                if let Some(mismatched_type) = maybe_mismatched_type {
+                    w.text("error: ");
+                    w.definition(source.as_slice());
+                    w.text(": ");
+                    w.error(typedef.get_str());
+                    w.text(" <- ");
+                    w.typename(mismatched_type.get_str());
+                } else {
+                    w.text("ok: ");
+                    w.definition(source.as_slice());
+                    w.text(": ");
+                    w.typename(typedef.get_str());
+                }
+                w.eol();
+                index += 1;
+            }
+        },
         &error::CompileError::ArgumentCountMismatch(ref error) => {
             w.error("Error: ");
             w.text("the definition ");

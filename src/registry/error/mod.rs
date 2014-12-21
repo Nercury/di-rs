@@ -1,5 +1,5 @@
 use typedef::TypeDef;
-use std::collections::{ BTreeMap, HashSet };
+use std::collections::{ VecMap, BTreeMap, HashSet };
 use std::collections::btree_map::{ Occupied, Vacant };
 
 use registry::definition_candidate::{ DefinitionCandidateKey, DefinitionCandidate };
@@ -8,6 +8,7 @@ pub enum CompileError {
     DuplicateDefinitions(DuplicateDefinitions),
     ArgumentCountMismatch(ArgumentCountMismatch),
     DependenciesNotFound(DependenciesNotFound),
+    IncorrectDepencencyTypes(IncorrectDepencencyTypes),
 }
 
 #[deriving(Clone)]
@@ -44,6 +45,37 @@ impl Definition {
 pub struct Duplicate {
     pub definition: Definition,
     pub count: uint,
+}
+
+pub struct IncorrectDepencencyTypes {
+    pub id: String,
+    pub collection_id: Option<String>,
+    pub typedef: TypeDef,
+    pub arg_types: Vec<TypeDef>,
+    pub arg_sources: Vec<String>,
+    pub mismatched_types: VecMap<TypeDef>
+}
+
+impl IncorrectDepencencyTypes {
+    pub fn new(
+        id: &str,
+        collection_id: Option<String>,
+        typedef: TypeDef,
+        arg_types: Vec<TypeDef>,
+        arg_sources: Vec<String>,
+        mismatched_types: VecMap<TypeDef>
+    )
+        -> IncorrectDepencencyTypes
+    {
+        IncorrectDepencencyTypes {
+            id: id.to_string(),
+            collection_id: collection_id,
+            typedef: typedef,
+            arg_types: arg_types,
+            arg_sources: arg_sources,
+            mismatched_types: mismatched_types,
+        }
+    }
 }
 
 pub struct DependenciesNotFound {

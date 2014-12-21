@@ -36,6 +36,12 @@ fn main() {
         .insert()
     ;
 
+    registry
+        .one_of("miracles", "missing_miracle", |reason: &'static str| reason)
+        .add_arg("miracle_reason")
+        .insert()
+    ;
+
     // Should print nice error.
 
     match registry.compile() {
