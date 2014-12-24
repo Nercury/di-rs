@@ -2,7 +2,7 @@ use typedef::TypeDef;
 
 use std::iter::repeat;
 use std::collections::{ VecMap, HashMap, HashSet };
-use std::collections::hash_map::{ Occupied, Vacant };
+use std::collections::hash_map::{ Entry };
 
 use registry::error;
 use registry::Registry;
@@ -30,10 +30,10 @@ impl Validator for DependencyValidator {
             .filter(|k| k.collection_id != None)
         {
             match groups.entry(key.collection_id.clone().unwrap()) {
-                Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     entry.get_mut().insert(key.id.as_slice());
                 },
-                Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     let mut set: HashSet<&str> = HashSet::new();
                     set.insert(key.id.as_slice());
                     entry.set(set);

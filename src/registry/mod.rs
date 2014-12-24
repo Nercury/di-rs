@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::collections::{ BTreeMap, HashMap };
-use std::collections::btree_map::{ Occupied, Vacant };
+use std::collections::btree_map::{ Entry };
 
 use metafactory::{ ToMetaFactory, MetaFactory };
 
@@ -180,8 +180,8 @@ impl Registry {
 
         if let Some(overriden_candidate) = self.maybe_definitions.remove(&candidate_key) {
             match self.overriden_definitions.entry(candidate_key.clone()) {
-                Vacant(entry) => { entry.set(vec![overriden_candidate]); },
-                Occupied(mut entry) => { entry.get_mut().push(overriden_candidate); },
+                Entry::Vacant(entry) => { entry.set(vec![overriden_candidate]); },
+                Entry::Occupied(mut entry) => { entry.get_mut().push(overriden_candidate); },
             };
         }
 

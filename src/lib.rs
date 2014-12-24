@@ -17,4 +17,3 @@ mod macros;
 pub mod registry;
 pub mod error_printer;
 pub mod container;
-pub mod factory_container;

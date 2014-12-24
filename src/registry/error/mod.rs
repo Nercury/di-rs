@@ -1,6 +1,6 @@
 use typedef::TypeDef;
 use std::collections::{ VecMap, BTreeMap, HashSet };
-use std::collections::btree_map::{ Occupied, Vacant };
+use std::collections::btree_map::{ Entry };
 
 use registry::definition_candidate::{ DefinitionCandidateKey, DefinitionCandidate };
 
@@ -138,7 +138,7 @@ impl DuplicateDefinitions {
         for duplicate in duplicates.iter() {
             let hash = argument_hash_for_candidate(*duplicate);
             match aliases.entry(hash) {
-                Vacant(entry) => {
+                Entry::Vacant(entry) => {
                     entry.set(Duplicate {
                         definition: Definition::from_key_and_candidate(
                             key, *duplicate
@@ -146,7 +146,7 @@ impl DuplicateDefinitions {
                         count: 1,
                     });
                 },
-                Occupied(mut entry) => {
+                Entry::Occupied(mut entry) => {
                     entry.get_mut().count += 1;
                 },
             }

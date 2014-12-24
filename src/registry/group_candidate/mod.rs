@@ -1,6 +1,6 @@
 use typedef::TypeDef;
 
-use factory_container::FactoryContainer;
+use metafactory::aggregate::Aggregate;
 
 /// Group candidate unique key.
 #[deriving(Ord, Eq, PartialEq, PartialOrd, Clone)]
@@ -22,16 +22,16 @@ impl GroupCandidateKey {
 #[allow(dead_code)]
 pub struct GroupCandidate {
     pub collection_typedef: TypeDef,
-    pub factory: FactoryContainer<'static>,
+    pub factory: Aggregate<'static>,
 }
 
 #[allow(dead_code)]
 impl GroupCandidate {
     pub fn new<T:'static>() -> GroupCandidate {
-        let collection_typedef = FactoryContainer::container_of::<T>();
+        let collection_typedef = Aggregate::container_of::<T>();
         GroupCandidate {
             collection_typedef: collection_typedef,
-            factory: FactoryContainer::new::<T>(),
+            factory: Aggregate::new::<T>(),
         }
     }
 
@@ -39,7 +39,7 @@ impl GroupCandidate {
         self.collection_typedef.clone()
     }
 
-    pub fn take_collection_factory(self) -> FactoryContainer<'static> {
+    pub fn take_collection_factory(self) -> Aggregate<'static> {
         self.factory
     }
 }
