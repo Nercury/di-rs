@@ -3,6 +3,7 @@ use std::collections::{ BTreeMap, HashMap };
 use std::collections::btree_map::{ Entry };
 
 use metafactory::{ ToMetaFactory, MetaFactory };
+use metafactory::aggregate::{ Aggregate };
 
 use container::Container;
 
@@ -73,11 +74,15 @@ impl Registry {
     }
 
     pub fn has_many<T: 'static>(&mut self, collection_id: &str) {
-        let group_candidate_key = GroupCandidateKey::new::<T>(collection_id);
+        self.define_group_if_not_exists(collection_id, Aggregate::new::<T>());
+    }
+
+    fn define_group_if_not_exists(&mut self, collection_id: &str, type_aggregate: Aggregate<'static>) {
+        let group_candidate_key = GroupCandidateKey::new(collection_id, type_aggregate.get_arg_type().get_str());
         if !self.maybe_groups.contains_key(&group_candidate_key) {
             self.maybe_groups.insert(
                 group_candidate_key,
-                GroupCandidate::new::<T>()
+                GroupCandidate::new(type_aggregate)
             );
         }
     }
@@ -85,9 +90,9 @@ impl Registry {
     pub fn one_of<'r, T: 'static + ToMetaFactory>(&'r mut self, collection_id: &str, id: &str, value: T)
         -> OneOf<'r>
     {
-        self.has_many::<T>(collection_id); // T is INCORRECT type in this case :/
-
         let metafactory = value.to_metafactory();
+
+        self.define_group_if_not_exists(collection_id, metafactory.new_aggregate());
 
         OneOf::new(
             self,

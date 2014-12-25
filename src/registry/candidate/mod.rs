@@ -56,10 +56,10 @@ pub struct GroupCandidateKey {
 }
 
 impl GroupCandidateKey {
-    pub fn new<T: 'static>(collection_id: &str) -> GroupCandidateKey {
+    pub fn new(collection_id: &str, contained_type_name: &'static str) -> GroupCandidateKey {
         GroupCandidateKey {
             collection_id: collection_id.to_string(),
-            contained_type_name: TypeDef::name_of::<T>(),
+            contained_type_name: contained_type_name,
         }
     }
 }
@@ -68,16 +68,15 @@ impl GroupCandidateKey {
 #[allow(dead_code)]
 pub struct GroupCandidate {
     pub collection_typedef: TypeDef,
-    pub factory: Aggregate<'static>,
+    pub aggregate: Aggregate<'static>,
 }
 
 #[allow(dead_code)]
 impl GroupCandidate {
-    pub fn new<T:'static>() -> GroupCandidate {
-        let collection_typedef = Aggregate::container_of::<T>();
+    pub fn new(aggregate: Aggregate<'static>) -> GroupCandidate {
         GroupCandidate {
-            collection_typedef: collection_typedef,
-            factory: Aggregate::new::<T>(),
+            collection_typedef: aggregate.get_container_type(),
+            aggregate: aggregate,
         }
     }
 
@@ -86,6 +85,6 @@ impl GroupCandidate {
     }
 
     pub fn take_collection_factory(self) -> Aggregate<'static> {
-        self.factory
+        self.aggregate
     }
 }

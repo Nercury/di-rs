@@ -68,7 +68,7 @@ impl Validator for DependencyValidator {
                             if groups.contains_key(&k.collection_id) {
                                 groups.get(&k.collection_id).unwrap()
                                     .iter()
-                                    .map(|arg_source| (*arg_source, g.factory.get_arg_type()))
+                                    .map(|arg_source| (*arg_source, g.aggregate.get_arg_type()))
                                     .collect()
                             } else {
                                 HashMap::new()
@@ -136,7 +136,7 @@ impl Validator for DependencyValidator {
                                 *id,
                                 None,
                                 requirements.typedef.clone(),
-                                repeat(group.factory.get_arg_type()).take(childs.len()).collect(),
+                                repeat(group.aggregate.get_arg_type()).take(childs.len()).collect(),
                                 childs.iter().map(|s| s.to_string()).collect(),
                                 mismatched_types.clone()
                             )));
