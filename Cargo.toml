@@ -16,7 +16,7 @@ keywords = [
 
 license = "MIT"
 
-description = "Dependency injection container."
+description = "Dependency injection container. Pre-release, not usable yet."
 
 [dependencies]
 metafactory = "*"
