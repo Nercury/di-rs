@@ -2,7 +2,7 @@ use typedef::TypeDef;
 use std::collections::{ VecMap, BTreeMap, HashSet };
 use std::collections::btree_map::{ Entry };
 
-use registry::definition_candidate::{ DefinitionCandidateKey, DefinitionCandidate };
+use registry::candidate::{ DefinitionCandidateKey, DefinitionCandidate };
 
 pub enum CompileError {
     DuplicateDefinitions(DuplicateDefinitions),

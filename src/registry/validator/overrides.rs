@@ -1,6 +1,6 @@
 use registry::error;
 use registry::Registry;
-use registry::definition_candidate::DefinitionCandidate;
+use registry::candidate::DefinitionCandidate;
 
 use super::Validator;
 

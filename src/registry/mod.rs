@@ -8,12 +8,10 @@ use container::Container;
 
 use self::one_of::{ OneOf };
 use self::one::{ One };
-use self::group_candidate::{ GroupCandidateKey, GroupCandidate };
-use self::definition_candidate::{ DefinitionCandidateKey, DefinitionCandidate };
+use self::candidate::{ GroupCandidateKey, GroupCandidate, DefinitionCandidateKey, DefinitionCandidate };
 use self::error::{ CompileError };
 
-mod group_candidate;
-mod definition_candidate;
+mod candidate;
 
 pub mod argument_builder;
 pub mod one_of;
@@ -89,13 +87,13 @@ impl Registry {
     {
         self.has_many::<T>(collection_id); // T is INCORRECT type in this case :/
 
-        // FIXME: need to use metafactory to create factory container.
+        let metafactory = value.to_metafactory();
 
         OneOf::new(
             self,
             collection_id,
             id,
-            value.to_metafactory()
+            metafactory
         )
     }
 

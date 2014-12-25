@@ -6,8 +6,7 @@ use std::collections::hash_map::{ Entry };
 
 use registry::error;
 use registry::Registry;
-use registry::definition_candidate::DefinitionCandidateKey;
-use registry::group_candidate::GroupCandidateKey;
+use registry::candidate::{ DefinitionCandidateKey, GroupCandidateKey };
 
 use super::Validator;
 
