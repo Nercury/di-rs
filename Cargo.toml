@@ -18,11 +18,12 @@ license = "MIT"
 
 description = "Dependency injection container. Pre-release, not usable yet."
 
+[lib]
+name = "di"
+doctest = true
+
 [dependencies]
 metafactory = "*"
-
-# [dependencies.metafactory]
-# path = "../../component/metafactory"
 
 [profile.dev]
 opt-level = 1  # Controls the --opt-level the compiler builds with

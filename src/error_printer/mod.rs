@@ -4,6 +4,7 @@ mod pretty_terminal;
 
 pub trait ErrorWriter {
     fn error(&mut self, m: &str);
+    fn success(&mut self, m: &str);
     fn definition(&mut self, m: &str);
     fn module(&mut self, m: &str);
     fn typename(&mut self, m: &str);
@@ -50,24 +51,38 @@ pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
             w.eol();
         },
         &error::CompileError::IncorrectDepencencyTypes(ref error) => {
-            w.error("Error: dependency types ");
-            w.definition(error.id.as_slice());
+            w.error("Error: ");
+
+            let mut deduped = error.arg_types.clone();
+            deduped.dedup();
+            if deduped.len() == 1 {
+                w.text("all ");
+                w.definition(error.id.as_slice());
+                w.text(" dependencies must return ");
+                w.typename(deduped[0].get_str());
+                w.text(" but some do not:");
+            } else {
+                w.text("some ");
+                w.definition(error.id.as_slice());
+                w.text(" dependencies return incorrect types:");
+            }
             w.eol();
             let mut index = 0u;
             let mut mismatched_types = error.mismatched_types.clone();
             for (typedef, source) in error.arg_types.iter().zip(error.arg_sources.iter()) {
                 let maybe_mismatched_type = mismatched_types.remove(&index);
                 if let Some(mismatched_type) = maybe_mismatched_type {
-                    w.text("error: ");
+                    w.layout(" |> ");
                     w.definition(source.as_slice());
-                    w.text(": ");
-                    w.error(typedef.get_str());
-                    w.text(" <- ");
-                    w.typename(mismatched_type.get_str());
+                    w.text(" returns ");
+                    w.error(mismatched_type.get_str());
+                    w.text(" but ");
+                    w.typename(typedef.get_str());
+                    w.text(" is required");
                 } else {
-                    w.text("ok: ");
+                    w.layout(" |> ");
                     w.definition(source.as_slice());
-                    w.text(": ");
+                    w.success(" returns ");
                     w.typename(typedef.get_str());
                 }
                 w.eol();

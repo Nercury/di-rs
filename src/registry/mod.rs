@@ -78,8 +78,9 @@ impl Registry {
     }
 
     fn define_group_if_not_exists(&mut self, collection_id: &str, type_aggregate: Aggregate<'static>) {
-        let group_candidate_key = GroupCandidateKey::new(collection_id, type_aggregate.get_arg_type().get_str());
+        let group_candidate_key = GroupCandidateKey::new(collection_id);
         if !self.maybe_groups.contains_key(&group_candidate_key) {
+            println!("insert group {}", group_candidate_key.collection_id);
             self.maybe_groups.insert(
                 group_candidate_key,
                 GroupCandidate::new(type_aggregate)

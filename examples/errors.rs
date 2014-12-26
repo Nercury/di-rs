@@ -42,6 +42,11 @@ fn main() {
         .insert()
     ;
 
+    registry
+        .one_of("miracles", "with_bad_type", true)
+        .insert()
+    ;
+
     // Should print nice error.
 
     match registry.compile() {

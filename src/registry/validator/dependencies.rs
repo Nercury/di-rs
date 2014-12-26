@@ -44,6 +44,7 @@ impl Validator for DependencyValidator {
 
         let definitions: HashMap<&str, DefinitionRequirements> = registry.maybe_definitions.iter()
             .map(|(k, c)|
+                // Normal definitions.
                 (k.id.as_slice(), DefinitionRequirements {
                     typedef: c.metafactory.get_type(),
                     candidate_key: Some(k.clone()),
@@ -60,6 +61,7 @@ impl Validator for DependencyValidator {
             .chain(
                 registry.maybe_groups.iter()
                 .map(|(k, g)|
+                    // Definition groups.
                     (k.collection_id.as_slice(), DefinitionRequirements {
                         typedef: g.collection_typedef,
                         candidate_key: None,

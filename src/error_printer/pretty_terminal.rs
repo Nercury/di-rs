@@ -3,6 +3,7 @@ use super::ErrorWriter;
 
 pub struct PrettyTerminalOutput {
     color_error: Option<term::color::Color>,
+    color_success: Option<term::color::Color>,
     color_definition: Option<term::color::Color>,
     color_module: Option<term::color::Color>,
     color_typename: Option<term::color::Color>,
@@ -19,6 +20,7 @@ impl PrettyTerminalOutput {
     pub fn new() -> PrettyTerminalOutput {
         PrettyTerminalOutput {
             color_error: Some(term::color::BRIGHT_RED),
+            color_success: Some(term::color::GREEN),
             color_definition: Some(term::color::BRIGHT_YELLOW),
             color_module: Some(term::color::BRIGHT_BLUE),
             color_typename: Some(term::color::CYAN),
@@ -46,6 +48,12 @@ impl ErrorWriter for PrettyTerminalOutput {
 
     fn error(&mut self, m: &str) {
         let new_color = self.color_error.clone();
+        self.set_color(new_color);
+        (write!(self.t, "{}", m)).unwrap();
+    }
+
+    fn success(&mut self, m: &str) {
+        let new_color = self.color_success.clone();
         self.set_color(new_color);
         (write!(self.t, "{}", m)).unwrap();
     }

@@ -52,14 +52,12 @@ impl DefinitionCandidate {
 #[deriving(Ord, Eq, PartialEq, PartialOrd, Clone)]
 pub struct GroupCandidateKey {
     pub collection_id: String,
-    contained_type_name: &'static str,
 }
 
 impl GroupCandidateKey {
-    pub fn new(collection_id: &str, contained_type_name: &'static str) -> GroupCandidateKey {
+    pub fn new(collection_id: &str) -> GroupCandidateKey {
         GroupCandidateKey {
             collection_id: collection_id.to_string(),
-            contained_type_name: contained_type_name,
         }
     }
 }
