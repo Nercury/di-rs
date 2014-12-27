@@ -119,56 +119,12 @@ impl Registry {
         );
     }
 
-    pub fn insert_with_args_one<T: 'static + ToMetaFactory>(&mut self, id: &str, arg_sources: &[&str], value: T) {
-        self.finalize(
-            None,
-            id,
-            value.to_metafactory(),
-            arg_sources.iter()
-                .map(|s| s.to_string())
-                .collect()
-        );
-    }
-
-    pub fn insert_with_arg_one<T: 'static + ToMetaFactory>(&mut self, id: &str, arg_source: &str, value: T) {
-        self.finalize(
-            None,
-            id,
-            value.to_metafactory(),
-            [arg_source].iter()
-                .map(|s| s.to_string())
-                .collect()
-        );
-    }
-
     pub fn insert_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, id: &str, value: T) {
         self.finalize(
             Some(collection_id),
             id,
             value.to_metafactory(),
             Vec::new()
-        );
-    }
-
-    pub fn insert_with_args_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, id: &str, arg_sources: &[&str], value: T) {
-        self.finalize(
-            Some(collection_id),
-            id,
-            value.to_metafactory(),
-            arg_sources.iter()
-                .map(|s| s.to_string())
-                .collect()
-        );
-    }
-
-    pub fn insert_with_arg_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, id: &str, arg_source: &str, value: T) {
-        self.finalize(
-            Some(collection_id),
-            id,
-            value.to_metafactory(),
-            [arg_source].iter()
-                .map(|s| s.to_string())
-                .collect()
         );
     }
 

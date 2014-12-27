@@ -22,13 +22,17 @@ fn main() {
         .insert()
     ;
 
-    registry.insert_with_arg_one("output", "printers", |printers: Vec<|String|:'static -> String>| {
-        let mut mut_printers = printers;
-        mut_printers.iter_mut()
-            .map(|p| (*p)("Text".to_string()))
-            .collect::<Vec<String>>()
-            .connect(" - ")
-    });
+    registry
+        .one("output", |printers: Vec<|String|:'static -> String>| {
+            let mut mut_printers = printers;
+            mut_printers.iter_mut()
+                .map(|p| (*p)("Text".to_string()))
+                .collect::<Vec<String>>()
+                .connect(" - ")
+        })
+        .add_arg("printers")
+        .insert()
+    ;
 
     registry.insert_one("first_name", "Printer One");
     registry.one("second_name", "Printer Second").insert();
