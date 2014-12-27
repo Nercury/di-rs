@@ -71,13 +71,12 @@ impl Registry {
         }
     }
 
-    pub fn has_many<T: 'static>(&mut self, collection_id: &str) {
+    pub fn may_be_empty<T: 'static>(&mut self, collection_id: &str) {
         self.define_group_if_not_exists(collection_id, Aggregate::new::<T>());
     }
 
     fn define_group_if_not_exists(&mut self, collection_id: &str, type_aggregate: Aggregate<'static>) {
         if !self.maybe_groups.contains_key(collection_id) {
-            println!("insert group {}", collection_id);
             self.maybe_groups.insert(
                 collection_id.to_string(),
                 GroupCandidate::new(type_aggregate)

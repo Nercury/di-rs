@@ -14,7 +14,7 @@ fn main() {
         .insert()
     ;
     registry
-        .one("duplicate", |_input: &'static str| 4i)
+        .one("duplicate", |_input: &'static str| false)
         .add_arg("what")
         .insert()
     ;

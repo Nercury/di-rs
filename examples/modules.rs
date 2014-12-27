@@ -3,7 +3,7 @@ extern crate di;
 fn main() {
     let mut registry = di::registry::Registry::new();
     registry
-        .has_many::<|String|:'static -> String>("printers")
+        .may_be_empty::<|String|:'static -> String>("printers")
     ;
 
     registry
