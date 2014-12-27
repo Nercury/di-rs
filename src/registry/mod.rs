@@ -22,9 +22,9 @@ pub mod validator;
 
 pub struct Registry {
     /// Contains a list of group candidates.
-    maybe_groups: BTreeMap<String, GroupCandidate>,
+    groups: BTreeMap<String, GroupCandidate>,
     /// Contains a list of definition candidates.
-    maybe_definitions: BTreeMap<String, DefinitionCandidate>,
+    definitions: BTreeMap<String, DefinitionCandidate>,
     /// Contains a list of definitions that were overriden while building
     /// the registry - so we can at least show some kind of warning.
     overriden_definitions: BTreeMap<String, Vec<DefinitionCandidate>>,
@@ -35,8 +35,8 @@ pub struct Registry {
 impl Registry {
     pub fn new() -> Registry {
         let mut registry = Registry {
-            maybe_groups: BTreeMap::new(),
-            maybe_definitions: BTreeMap::new(),
+            groups: BTreeMap::new(),
+            definitions: BTreeMap::new(),
             overriden_definitions: BTreeMap::new(),
             validators: Vec::new(),
         };
@@ -76,8 +76,8 @@ impl Registry {
     }
 
     fn define_group_if_not_exists(&mut self, collection_id: &str, type_aggregate: Aggregate<'static>) {
-        if !self.maybe_groups.contains_key(collection_id) {
-            self.maybe_groups.insert(
+        if !self.groups.contains_key(collection_id) {
+            self.groups.insert(
                 collection_id.to_string(),
                 GroupCandidate::new(type_aggregate)
             );
@@ -128,7 +128,7 @@ impl Registry {
     }
 
     fn finalize(&mut self, collection_id: Option<&str>, id: &str, value: Box<MetaFactory + 'static>, args: Vec<String>) {
-        if let Some(overriden_candidate) = self.maybe_definitions.remove(id) {
+        if let Some(overriden_candidate) = self.definitions.remove(id) {
             match self.overriden_definitions.entry(id.to_string()) {
                 Entry::Vacant(entry) => { entry.set(vec![overriden_candidate]); },
                 Entry::Occupied(mut entry) => { entry.get_mut().push(overriden_candidate); },
@@ -141,7 +141,7 @@ impl Registry {
             collection_id
         );
 
-        self.maybe_definitions.insert(
+        self.definitions.insert(
             id.to_string(),
             candidate
         );

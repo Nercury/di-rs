@@ -15,7 +15,7 @@ impl Validator for NoOverridesValidator {
                 .map(|c| c)
                 .collect::<Vec<&DefinitionCandidate>>();
 
-            if let Some(added_candidate) = registry.maybe_definitions.get(id) {
+            if let Some(added_candidate) = registry.definitions.get(id) {
                 duplicates.push(added_candidate);
 
                 error_summary.push(

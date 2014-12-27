@@ -24,7 +24,7 @@ impl Validator for DependencyValidator {
         // Collect group_id -> [ child_id ] map.
 
         let mut groups: HashMap<String, HashSet<&str>> = HashMap::new();
-        for (id, value) in registry.maybe_definitions.iter()
+        for (id, value) in registry.definitions.iter()
             .filter(|&(_, v)| v.collection_id != None)
         {
             match groups.entry(value.collection_id.clone().unwrap()) {
@@ -41,7 +41,7 @@ impl Validator for DependencyValidator {
 
         // Collect all_definition_id -> required definition_id + type map.
 
-        let definitions: HashMap<&str, DefinitionRequirements> = registry.maybe_definitions.iter()
+        let definitions: HashMap<&str, DefinitionRequirements> = registry.definitions.iter()
             .map(|(id, c)|
                 // Normal definitions.
                 (id.as_slice(), DefinitionRequirements {
@@ -58,7 +58,7 @@ impl Validator for DependencyValidator {
                 })
             )
             .chain(
-                registry.maybe_groups.iter()
+                registry.groups.iter()
                 .map(|(id, g)|
                     // Definition groups.
                     (id.as_slice(), DefinitionRequirements {
@@ -118,7 +118,7 @@ impl Validator for DependencyValidator {
 
                 if mismatched_types.len() > 0 {
                     if let Some(candidate_id) = requirements.candidate_id.clone() {
-                        if let Some(candidate) = registry.maybe_definitions.get(&candidate_id) {
+                        if let Some(candidate) = registry.definitions.get(&candidate_id) {
                             error_summary.push(error::CompileError::IncorrectDepencencyTypes(error::IncorrectDepencencyTypes::new(
                                 *id,
                                 candidate.collection_id.clone(),
@@ -131,7 +131,7 @@ impl Validator for DependencyValidator {
                             panic!("Previously found candidate not found in registry.")
                         }
                     } else if let Some(group_id) = requirements.group_id.clone() {
-                        if let Some(group) = registry.maybe_groups.get(&group_id) {
+                        if let Some(group) = registry.groups.get(&group_id) {
                             let childs = groups.get(&id.to_string()).expect("Failed to get childs for collection");
                             error_summary.push(error::CompileError::IncorrectDepencencyTypes(error::IncorrectDepencencyTypes::new(
                                 *id,
