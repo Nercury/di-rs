@@ -7,7 +7,7 @@ use metafactory::aggregate::{ Aggregate };
 
 use container::Container;
 
-use self::new_definition::{ OneOf };
+use self::new_definition::{ NewDefinition };
 use self::candidate::{ GroupCandidate, DefinitionCandidate };
 use self::error::{ CompileError };
 
@@ -83,13 +83,13 @@ impl Registry {
     }
 
     pub fn one_of<'r, T: 'static + ToMetaFactory>(&'r mut self, collection_id: &str, id: &str, value: T)
-        -> OneOf<'r>
+        -> NewDefinition<'r>
     {
         let metafactory = value.to_metafactory();
 
         self.define_group_if_not_exists(collection_id, metafactory.new_aggregate());
 
-        OneOf::new(
+        NewDefinition::new(
             self,
             Some(collection_id.to_string()),
             id,
@@ -98,9 +98,9 @@ impl Registry {
     }
 
     pub fn one<'r, T: 'static + ToMetaFactory>(&'r mut self, id: &str, value: T)
-        -> OneOf<'r>
+        -> NewDefinition<'r>
     {
-        OneOf::new(
+        NewDefinition::new(
             self,
             None,
             id,

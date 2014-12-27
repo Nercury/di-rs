@@ -2,15 +2,15 @@ use metafactory::{ MetaFactory };
 use registry::argument_builder::ArgumentBuilder;
 use registry::Registry;
 
-pub struct OneOfParams {
+pub struct NewDefinitionParams {
     pub collection_id: Option<String>,
     pub id: String,
     pub value: Box<MetaFactory + 'static>,
 }
 
-impl OneOfParams {
-    pub fn new(collection_id: Option<String>, id: &str, value: Box<MetaFactory + 'static>) -> OneOfParams {
-        OneOfParams {
+impl NewDefinitionParams {
+    pub fn new(collection_id: Option<String>, id: &str, value: Box<MetaFactory + 'static>) -> NewDefinitionParams {
+        NewDefinitionParams {
             collection_id: collection_id,
             id: id.to_string(),
             value: value,
@@ -18,17 +18,17 @@ impl OneOfParams {
     }
 }
 
-pub struct OneOf<'a> {
+pub struct NewDefinition<'a> {
     pub registry: &'a mut Registry,
-    pub params: OneOfParams,
+    pub params: NewDefinitionParams,
     pub arg_builder: ArgumentBuilder,
 }
 
-impl<'a> OneOf<'a> {
-    pub fn new(registry: &'a mut Registry, collection_id: Option<String>, id: &str, value: Box<MetaFactory + 'static>) -> OneOf<'a> {
-        OneOf {
+impl<'a> NewDefinition<'a> {
+    pub fn new(registry: &'a mut Registry, collection_id: Option<String>, id: &str, value: Box<MetaFactory + 'static>) -> NewDefinition<'a> {
+        NewDefinition {
             registry: registry,
-            params: OneOfParams::new(
+            params: NewDefinitionParams::new(
                 collection_id,
                 id,
                 value
@@ -41,7 +41,7 @@ impl<'a> OneOf<'a> {
         mut self,
         arg_sources: &[&str]
     )
-        -> OneOf<'a>
+        -> NewDefinition<'a>
     {
         self.arg_builder.set_arg_sources(arg_sources);
         self
@@ -51,7 +51,7 @@ impl<'a> OneOf<'a> {
         mut self,
         arg_source: &str
     )
-        -> OneOf<'a>
+        -> NewDefinition<'a>
     {
         self.arg_builder.set_arg_source(arg_source);
         self
@@ -61,7 +61,7 @@ impl<'a> OneOf<'a> {
         mut self,
         arg_source: &str
     )
-        -> OneOf<'a>
+        -> NewDefinition<'a>
     {
         self.arg_builder.push_arg_source(arg_source);
         self
