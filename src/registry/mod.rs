@@ -93,17 +93,18 @@ impl Registry {
 
         OneOf::new(
             self,
-            collection_id,
+            Some(collection_id.to_string()),
             id,
             metafactory
         )
     }
 
     pub fn one<'r, T: 'static + ToMetaFactory>(&'r mut self, id: &str, value: T)
-        -> One<'r>
+        -> OneOf<'r>
     {
-        One::new(
+        OneOf::new(
             self,
+            None,
             id,
             value.to_metafactory()
         )
@@ -120,14 +121,14 @@ impl Registry {
 
     pub fn insert_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, id: &str, value: T) {
         self.finalize(
-            Some(collection_id),
+            Some(collection_id.to_string()),
             id,
             value.to_metafactory(),
             Vec::new()
         );
     }
 
-    fn finalize(&mut self, collection_id: Option<&str>, id: &str, value: Box<MetaFactory + 'static>, args: Vec<String>) {
+    fn finalize(&mut self, collection_id: Option<String>, id: &str, value: Box<MetaFactory + 'static>, args: Vec<String>) {
         if let Some(overriden_candidate) = self.definitions.remove(id) {
             match self.overriden_definitions.entry(id.to_string()) {
                 Entry::Vacant(entry) => { entry.set(vec![overriden_candidate]); },

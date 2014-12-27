@@ -13,17 +13,14 @@ impl DefinitionCandidate {
     pub fn new(
         metafactory: Box<MetaFactory + 'static>,
         arg_sources: Vec<String>,
-        collection_id: Option<&str>
+        collection_id: Option<String>
     )
         -> DefinitionCandidate
     {
         DefinitionCandidate {
             metafactory: metafactory,
             arg_sources: arg_sources,
-            collection_id: match collection_id {
-                Some(id) => Some(id.to_string()),
-                None => None,
-            },
+            collection_id: collection_id,
         }
     }
 }
