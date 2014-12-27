@@ -2,7 +2,7 @@ use typedef::TypeDef;
 use std::collections::{ VecMap, BTreeMap, HashSet };
 use std::collections::btree_map::{ Entry };
 
-use registry::candidate::{ DefinitionCandidateKey, DefinitionCandidate };
+use registry::candidate::{ DefinitionCandidate };
 
 pub enum CompileError {
     DuplicateDefinitions(DuplicateDefinitions),
@@ -26,15 +26,15 @@ pub struct Definition {
 }
 
 impl Definition {
-    fn from_key_and_candidate(
-        key: &DefinitionCandidateKey,
+    fn from_candidate(
+        id: &str,
         candidate: &DefinitionCandidate
     )
         -> Definition
     {
         Definition {
-            id: key.id.clone(),
-            collection_id: key.collection_id.clone(),
+            id: id.to_string(),
+            collection_id: candidate.collection_id.clone(),
             typedef: candidate.metafactory.get_type(),
             args: arguments_from_candidate(candidate),
         }
@@ -107,14 +107,14 @@ pub struct ArgumentCountMismatch {
 
 impl ArgumentCountMismatch {
     pub fn new(
-        key: &DefinitionCandidateKey,
+        id: &str,
         candidate: &DefinitionCandidate
     )
         -> ArgumentCountMismatch
     {
         ArgumentCountMismatch {
-            id: key.id.clone(),
-            collection_id: key.collection_id.clone(),
+            id: id.to_string(),
+            collection_id: candidate.collection_id.clone(),
             typedef: candidate.metafactory.get_type(),
             arg_types: candidate.metafactory.get_arg_types(),
             arg_sources: candidate.arg_sources.clone(),
@@ -128,7 +128,7 @@ pub struct DuplicateDefinitions {
 
 impl DuplicateDefinitions {
     pub fn new(
-        key: &DefinitionCandidateKey,
+        id: &str,
         duplicates: &Vec<&DefinitionCandidate>
     )
         -> DuplicateDefinitions
@@ -140,8 +140,8 @@ impl DuplicateDefinitions {
             match aliases.entry(hash) {
                 Entry::Vacant(entry) => {
                     entry.set(Duplicate {
-                        definition: Definition::from_key_and_candidate(
-                            key, *duplicate
+                        definition: Definition::from_candidate(
+                            id, *duplicate
                         ),
                         count: 1,
                     });
@@ -160,12 +160,12 @@ impl DuplicateDefinitions {
 
 fn arguments_from_candidate(candidate: &DefinitionCandidate) -> Vec<Argument> {
     candidate.metafactory.get_arg_types()
-    .iter().zip(candidate.arg_sources.iter())
-    .map(|&: (typedef, source)| Argument {
-        typedef: typedef.clone(),
-        source: source.clone(),
-    })
-    .collect()
+        .iter().zip(candidate.arg_sources.iter())
+        .map(|&: (typedef, source)| Argument {
+            typedef: typedef.clone(),
+            source: source.clone(),
+        })
+        .collect()
 }
 
 fn argument_hash_for_candidate(candidate: &DefinitionCandidate) -> String {

@@ -9,7 +9,7 @@ use container::Container;
 
 use self::one_of::{ OneOf };
 use self::one::{ One };
-use self::candidate::{ GroupCandidateKey, GroupCandidate, DefinitionCandidateKey, DefinitionCandidate };
+use self::candidate::{ GroupCandidate, DefinitionCandidate };
 use self::error::{ CompileError };
 
 mod candidate;
@@ -21,15 +21,13 @@ pub mod error;
 pub mod validator;
 
 pub struct Registry {
-    /// Contains a list of group candidates that are unique for
-    /// id+type.
-    maybe_groups: BTreeMap<GroupCandidateKey, GroupCandidate>,
-    /// Contains a list of definition candidates that are unique for
-    /// id+collection_id+type.
-    maybe_definitions: BTreeMap<DefinitionCandidateKey, DefinitionCandidate>,
+    /// Contains a list of group candidates.
+    maybe_groups: BTreeMap<String, GroupCandidate>,
+    /// Contains a list of definition candidates.
+    maybe_definitions: BTreeMap<String, DefinitionCandidate>,
     /// Contains a list of definitions that were overriden while building
     /// the registry - so we can at least show some kind of warning.
-    overriden_definitions: BTreeMap<DefinitionCandidateKey, Vec<DefinitionCandidate>>,
+    overriden_definitions: BTreeMap<String, Vec<DefinitionCandidate>>,
 
     validators: Vec<Box<validator::Validator + 'static>>,
 }
@@ -78,11 +76,10 @@ impl Registry {
     }
 
     fn define_group_if_not_exists(&mut self, collection_id: &str, type_aggregate: Aggregate<'static>) {
-        let group_candidate_key = GroupCandidateKey::new(collection_id);
-        if !self.maybe_groups.contains_key(&group_candidate_key) {
-            println!("insert group {}", group_candidate_key.collection_id);
+        if !self.maybe_groups.contains_key(collection_id) {
+            println!("insert group {}", collection_id);
             self.maybe_groups.insert(
-                group_candidate_key,
+                collection_id.to_string(),
                 GroupCandidate::new(type_aggregate)
             );
         }
@@ -176,14 +173,8 @@ impl Registry {
     }
 
     fn finalize(&mut self, collection_id: Option<&str>, id: &str, value: Box<MetaFactory + 'static>, args: Vec<String>) {
-        let candidate_key = DefinitionCandidateKey::new(
-            id,
-            collection_id,
-            value.get_type().get_str()
-        );
-
-        if let Some(overriden_candidate) = self.maybe_definitions.remove(&candidate_key) {
-            match self.overriden_definitions.entry(candidate_key.clone()) {
+        if let Some(overriden_candidate) = self.maybe_definitions.remove(id) {
+            match self.overriden_definitions.entry(id.to_string()) {
                 Entry::Vacant(entry) => { entry.set(vec![overriden_candidate]); },
                 Entry::Occupied(mut entry) => { entry.get_mut().push(overriden_candidate); },
             };
@@ -191,11 +182,12 @@ impl Registry {
 
         let candidate = DefinitionCandidate::new(
             value,
-            args
+            args,
+            collection_id
         );
 
         self.maybe_definitions.insert(
-            candidate_key,
+            id.to_string(),
             candidate
         );
     }

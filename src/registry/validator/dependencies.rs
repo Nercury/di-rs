@@ -6,7 +6,6 @@ use std::collections::hash_map::{ Entry };
 
 use registry::error;
 use registry::Registry;
-use registry::candidate::{ DefinitionCandidateKey, GroupCandidateKey };
 
 use super::Validator;
 
@@ -15,8 +14,8 @@ pub struct DependencyValidator;
 
 struct DefinitionRequirements<'a> {
     typedef: TypeDef,
-    candidate_key: Option<DefinitionCandidateKey>,
-    group_key: Option<GroupCandidateKey>,
+    candidate_id: Option<String>,
+    group_id: Option<String>,
     arguments: HashMap<&'a str, TypeDef>,
 }
 
@@ -25,16 +24,16 @@ impl Validator for DependencyValidator {
         // Collect group_id -> [ child_id ] map.
 
         let mut groups: HashMap<String, HashSet<&str>> = HashMap::new();
-        for key in registry.maybe_definitions.keys()
-            .filter(|k| k.collection_id != None)
+        for (id, value) in registry.maybe_definitions.iter()
+            .filter(|&(_, v)| v.collection_id != None)
         {
-            match groups.entry(key.collection_id.clone().unwrap()) {
+            match groups.entry(value.collection_id.clone().unwrap()) {
                 Entry::Occupied(mut entry) => {
-                    entry.get_mut().insert(key.id.as_slice());
+                    entry.get_mut().insert(id.as_slice());
                 },
                 Entry::Vacant(entry) => {
                     let mut set: HashSet<&str> = HashSet::new();
-                    set.insert(key.id.as_slice());
+                    set.insert(id.as_slice());
                     entry.set(set);
                 }
             }
@@ -43,12 +42,12 @@ impl Validator for DependencyValidator {
         // Collect all_definition_id -> required definition_id + type map.
 
         let definitions: HashMap<&str, DefinitionRequirements> = registry.maybe_definitions.iter()
-            .map(|(k, c)|
+            .map(|(id, c)|
                 // Normal definitions.
-                (k.id.as_slice(), DefinitionRequirements {
+                (id.as_slice(), DefinitionRequirements {
                     typedef: c.metafactory.get_type(),
-                    candidate_key: Some(k.clone()),
-                    group_key: None,
+                    candidate_id: Some(id.to_string()),
+                    group_id: None,
                     arguments: c.arg_sources.iter()
                         .map(|s| s.as_slice())
                         .zip(
@@ -60,15 +59,15 @@ impl Validator for DependencyValidator {
             )
             .chain(
                 registry.maybe_groups.iter()
-                .map(|(k, g)|
+                .map(|(id, g)|
                     // Definition groups.
-                    (k.collection_id.as_slice(), DefinitionRequirements {
+                    (id.as_slice(), DefinitionRequirements {
                         typedef: g.collection_typedef,
-                        candidate_key: None,
-                        group_key: Some(k.clone()),
+                        candidate_id: None,
+                        group_id: Some(id.to_string()),
                         arguments:
-                            if groups.contains_key(&k.collection_id) {
-                                groups.get(&k.collection_id).unwrap()
+                            if groups.contains_key(id) {
+                                groups.get(id).unwrap()
                                     .iter()
                                     .map(|arg_source| (*arg_source, g.aggregate.get_arg_type()))
                                     .collect()
@@ -118,11 +117,11 @@ impl Validator for DependencyValidator {
                 }
 
                 if mismatched_types.len() > 0 {
-                    if let Some(candidate_key) = requirements.candidate_key.clone() {
-                        if let Some(candidate) = registry.maybe_definitions.get(&candidate_key) {
+                    if let Some(candidate_id) = requirements.candidate_id.clone() {
+                        if let Some(candidate) = registry.maybe_definitions.get(&candidate_id) {
                             error_summary.push(error::CompileError::IncorrectDepencencyTypes(error::IncorrectDepencencyTypes::new(
                                 *id,
-                                candidate_key.collection_id.clone(),
+                                candidate.collection_id.clone(),
                                 candidate.metafactory.get_type(),
                                 candidate.metafactory.get_arg_types(),
                                 candidate.arg_sources.clone(),
@@ -131,8 +130,8 @@ impl Validator for DependencyValidator {
                         } else {
                             panic!("Previously found candidate not found in registry.")
                         }
-                    } else if let Some(group_key) = requirements.group_key.clone() {
-                        if let Some(group) = registry.maybe_groups.get(&group_key) {
+                    } else if let Some(group_id) = requirements.group_id.clone() {
+                        if let Some(group) = registry.maybe_groups.get(&group_id) {
                             let childs = groups.get(&id.to_string()).expect("Failed to get childs for collection");
                             error_summary.push(error::CompileError::IncorrectDepencencyTypes(error::IncorrectDepencencyTypes::new(
                                 *id,
@@ -142,6 +141,8 @@ impl Validator for DependencyValidator {
                                 childs.iter().map(|s| s.to_string()).collect(),
                                 mismatched_types.clone()
                             )));
+                        } else {
+                            panic!("Previously found group not found in registry.")
                         }
                     }
                 }

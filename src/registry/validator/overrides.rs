@@ -9,19 +9,19 @@ pub struct NoOverridesValidator;
 
 impl Validator for NoOverridesValidator {
     fn validate(&self, registry: &Registry, error_summary: &mut Vec<error::CompileError>) {
-        for (key, candidates) in registry.overriden_definitions.iter() {
+        for (id, candidates) in registry.overriden_definitions.iter() {
 
             let mut duplicates = candidates.iter()
                 .map(|c| c)
                 .collect::<Vec<&DefinitionCandidate>>();
 
-            if let Some(added_candidate) = registry.maybe_definitions.get(key) {
+            if let Some(added_candidate) = registry.maybe_definitions.get(id) {
                 duplicates.push(added_candidate);
 
                 error_summary.push(
                     error::CompileError::DuplicateDefinitions(
                         error::DuplicateDefinitions::new(
-                            key,
+                            id.as_slice(),
                             &duplicates
                         )
                     )

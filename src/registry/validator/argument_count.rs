@@ -9,12 +9,12 @@ pub struct ArgumentCountValidator;
 impl Validator for ArgumentCountValidator {
     fn validate(&self, registry: &Registry, error_summary: &mut Vec<error::CompileError>) {
         for error in registry.maybe_definitions.iter()
-            .filter_map(|(key, candidate)| {
+            .filter_map(|(id, candidate)| {
                 if candidate.arg_sources.len() == candidate.metafactory.get_arg_types().len() {
                     None
                 } else {
                     Some(error::CompileError::ArgumentCountMismatch(error::ArgumentCountMismatch::new(
-                        key, candidate
+                        id.as_slice(), candidate
                     )))
                 }
             })
