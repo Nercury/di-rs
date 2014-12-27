@@ -7,16 +7,14 @@ use metafactory::aggregate::{ Aggregate };
 
 use container::Container;
 
-use self::one_of::{ OneOf };
-use self::one::{ One };
+use self::new_definition::{ OneOf };
 use self::candidate::{ GroupCandidate, DefinitionCandidate };
 use self::error::{ CompileError };
 
 mod candidate;
 
 pub mod argument_builder;
-pub mod one_of;
-pub mod one;
+pub mod new_definition;
 pub mod error;
 pub mod validator;
 
