@@ -2,7 +2,6 @@ use typedef::TypeDef;
 
 use std::iter::repeat;
 use std::collections::{ VecMap, HashMap, HashSet };
-use std::collections::hash_map::{ Entry };
 
 use registry::error;
 use registry::Registry;
@@ -23,21 +22,7 @@ impl Validator for DependencyValidator {
     fn validate(&self, registry: &Registry, error_summary: &mut Vec<error::CompileError>) {
         // Collect group_id -> [ child_id ] map.
 
-        let mut groups: HashMap<String, HashSet<&str>> = HashMap::new();
-        for (id, value) in registry.definitions.iter()
-            .filter(|&(_, v)| v.collection_id != None)
-        {
-            match groups.entry(value.collection_id.clone().unwrap()) {
-                Entry::Occupied(mut entry) => {
-                    entry.get_mut().insert(id.as_slice());
-                },
-                Entry::Vacant(entry) => {
-                    let mut set: HashSet<&str> = HashSet::new();
-                    set.insert(id.as_slice());
-                    entry.set(set);
-                }
-            }
-        }
+        let groups = registry.collect_group_dependencies();
 
         // Collect all_definition_id -> required definition_id + type map.
 

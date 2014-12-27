@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::collections::{ BTreeMap, HashMap };
+use std::collections::{ BTreeMap, BTreeSet, HashMap };
 use std::collections::btree_map::{ Entry };
 
 use metafactory::{ ToMetaFactory, MetaFactory };
@@ -9,7 +9,7 @@ use container::Container;
 
 use self::new_definition::{ NewDefinition };
 use self::candidate::{ GroupCandidate, DefinitionCandidate };
-use self::error::{ CompileError };
+use self::error::{ CompileError, CircularDependency };
 
 mod candidate;
 
@@ -53,6 +53,134 @@ impl Registry {
         self.validators.push(box validator);
     }
 
+    fn create_missing_factory(
+        &self,
+        groups: &BTreeMap<String, BTreeSet<&str>>,
+        factory_map: &mut HashMap<String, Box<Any>>,
+        dependency_chain: &mut Vec<String>,
+        id: &str
+    ) -> Result<(), CircularDependency> {
+        dependency_chain.push(id.to_string());
+
+        // Find if this is a definition or a group.
+        let mut result = match self.definitions.get(id) {
+            Some(definition) => {
+                // Check for circular dependencies.
+
+                for source in definition.arg_sources.iter() {
+                    if dependency_chain.contains(source) {
+                        dependency_chain.push(source.clone());
+                        return Err(CircularDependency::new(dependency_chain.clone()));
+                    }
+                }
+
+                // Create definition factory.
+
+                Some(self.create_definition_factory(
+                    groups,
+                    factory_map,
+                    dependency_chain,
+                    id,
+                    definition
+                ))
+            },
+            None => None,
+        };
+
+        if let None = result {
+            result = match self.groups.get(id) {
+                Some(group) => {
+                    // Collect users of this group.
+                    let group_dependencies = groups.get(id).expect(format!("expected to find dependencies for group {}", id).as_slice());
+
+                    // Check for circular dependencies.
+                    for source in group_dependencies.iter() {
+                        if dependency_chain.contains(&source.to_string()) {
+                            dependency_chain.push(source.to_string());
+                            return Err(CircularDependency::new(dependency_chain.clone()));
+                        }
+                    }
+
+                    Some(self.create_group_factory(
+                        groups,
+                        factory_map,
+                        dependency_chain,
+                        id,
+                        group,
+                        group_dependencies
+                    ))
+                },
+                None => None,
+            }
+        }
+
+        dependency_chain.pop();
+
+        result.expect(format!("expected definition or group {} was not found", id).as_slice())
+    }
+
+    fn create_definition_factory(
+        &self,
+        groups: &BTreeMap<String, BTreeSet<&str>>,
+        factory_map: &mut HashMap<String, Box<Any>>,
+        dependency_chain: &mut Vec<String>,
+        id: &str,
+        definition: &DefinitionCandidate
+    ) -> Result<(), CircularDependency> {
+
+        for source in definition.arg_sources.iter() {
+            let factory_contains_id = match factory_map.get(source) {
+                None => false,
+                _ => true,
+            };
+            if !factory_contains_id {
+                match self.create_missing_factory(
+                    groups,
+                    factory_map,
+                    dependency_chain,
+                    source.as_slice()
+                ) {
+                    Err(error) => return Err(error),
+                    _ => (),
+                };
+            }
+        }
+
+        Ok(())
+    }
+
+    fn create_group_factory(
+        &self,
+        groups: &BTreeMap<String, BTreeSet<&str>>,
+        factory_map: &mut HashMap<String, Box<Any>>,
+        dependency_chain: &mut Vec<String>,
+        id: &str,
+        group: &GroupCandidate,
+        group_sources: &BTreeSet<&str>
+    )
+        -> Result<(), CircularDependency>
+    {
+        for source in group_sources.iter() {
+            let factory_contains_id = match factory_map.get(&source.to_string()) {
+                None => false,
+                _ => true,
+            };
+            if !factory_contains_id {
+                match self.create_missing_factory(
+                    groups,
+                    factory_map,
+                    dependency_chain,
+                    source.as_slice()
+                ) {
+                    Err(error) => return Err(error),
+                    _ => (),
+                };
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn compile(&self) -> Result<Container, Vec<CompileError>> {
         let mut error_summary = Vec::<CompileError>::new();
 
@@ -60,7 +188,28 @@ impl Registry {
             validator.validate(self, &mut error_summary);
         }
 
-        let factory_map = HashMap::<String, Box<Any>>::new();
+        let mut factory_map = HashMap::<String, Box<Any>>::new();
+        let groups = self.collect_group_dependencies();
+
+        if error_summary.len() == 0 {
+            for (id, definition) in self.definitions.iter() {
+                let factory_contains_id = match factory_map.get(id) {
+                    None => false,
+                    _ => true,
+                };
+                if !factory_contains_id {
+                    match self.create_missing_factory(
+                        &groups,
+                        &mut factory_map,
+                        &mut Vec::<String>::new(),
+                        id.as_slice()
+                    ) {
+                        Err(error) => error_summary.push(CompileError::CircularDependency(error)),
+                        _ => (),
+                    };
+                }
+            }
+        }
 
         if error_summary.len() == 0 {
             Ok(Container::new(factory_map))
@@ -114,6 +263,27 @@ impl Registry {
             value.to_metafactory(),
             Vec::new()
         );
+    }
+
+    fn collect_group_dependencies<'r>(&'r self) -> BTreeMap<String, BTreeSet<&'r str>> {
+        let mut groups: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();
+
+        for (id, value) in self.definitions.iter()
+            .filter(|&(_, v)| v.collection_id != None)
+        {
+            match groups.entry(value.collection_id.clone().unwrap()) {
+                Entry::Occupied(mut entry) => {
+                    entry.get_mut().insert(id.as_slice());
+                },
+                Entry::Vacant(entry) => {
+                    let mut set: BTreeSet<&str> = BTreeSet::new();
+                    set.insert(id.as_slice());
+                    entry.set(set);
+                }
+            }
+        }
+
+        groups
     }
 
     fn define_group_if_not_exists(&mut self, collection_id: &str, type_aggregate: Aggregate<'static>) {

@@ -50,6 +50,15 @@ pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
             print_defs_in_sentence(w, error.missing_dependencies.iter().map(|s| s.clone()).collect());
             w.eol();
         },
+        &error::CompileError::CircularDependency(ref error) => {
+            w.error("Error: Circular dependency:");
+            w.eol();
+            for def in error.path.iter() {
+                w.layout(" |> ");
+                w.definition(def.as_slice());
+                w.eol();
+            }
+        },
         &error::CompileError::IncorrectDepencencyTypes(ref error) => {
             w.error("Error: ");
 

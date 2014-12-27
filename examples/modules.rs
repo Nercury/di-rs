@@ -2,47 +2,31 @@ extern crate di;
 
 fn main() {
     let mut registry = di::registry::Registry::new();
-    registry
-        .may_be_empty::<|String|:'static -> String>("printers")
-    ;
 
-    registry
-        .one_of("printers", |name: String| {
-            |val: &str| println!("{}, {}", name, val);
-        })
-        .with_arg("first_name")
-        .insert()
-    ;
+    registry.insert_one("a", 5i);
+    registry.insert_one("b", 4i);
 
-    registry
-        .one_of("printers", |name: &'static str| {
-            |val: &str| println!("{}, {}", name, val);
-        })
-        .add_arg("second_name")
-        .insert()
-    ;
+    registry.one("sum", |a: int, b: int, c: String| a + b).with_args(&["a", "b", "result_view"]).insert();
+    registry.one("difference", |a: int, b: int| a - b).with_args(&["a", "b"]).insert();
 
-    registry
-        .one("output", |printers: Vec<|String|:'static -> String>| {
-            let mut mut_printers = printers;
-            mut_printers.iter_mut()
-                .map(|p| (*p)("Text".to_string()))
-                .collect::<Vec<String>>()
-                .connect(" - ")
-        })
-        .add_arg("printers")
-        .insert()
-    ;
+    registry.one_of("results", |sum: int, difference: int| {
+        vec![sum, difference]
+    })
+        .with_args(&["sum", "difference"])
+        .insert();
 
-    registry.insert_one("first_name", "Printer One");
-    registry.one("second_name", "Printer Second").insert();
+    registry.one("result_view", |results: Vec<Vec<int>>| {
+        format!("{}, {}", results[0][0], results[0][1])
+    })
+        .with_arg("results")
+        .insert();
 
-    //let maybe_container = registry.compile();
-    //
-    // let source = container.source_of_many::<|| -> ()>("printers");
-    // let printers = source.new();
-    //
-    // for printer in printers.iter() {
-    //     (*printer)("Hi");
-    // }
+    match registry.compile() {
+        Ok(container) => {
+
+        },
+        Err(errors) => {
+            di::error_printer::pretty_print(&errors);
+        }
+    }
 }

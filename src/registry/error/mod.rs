@@ -9,6 +9,7 @@ pub enum CompileError {
     ArgumentCountMismatch(ArgumentCountMismatch),
     DependenciesNotFound(DependenciesNotFound),
     IncorrectDepencencyTypes(IncorrectDepencencyTypes),
+    CircularDependency(CircularDependency),
 }
 
 #[deriving(Clone)]
@@ -74,6 +75,22 @@ impl IncorrectDepencencyTypes {
             arg_types: arg_types,
             arg_sources: arg_sources,
             mismatched_types: mismatched_types,
+        }
+    }
+}
+
+pub struct CircularDependency {
+    pub path: Vec<String>,
+}
+
+impl CircularDependency {
+    pub fn new(
+        path: Vec<String>
+    )
+        -> CircularDependency
+    {
+        CircularDependency {
+            path: path,
         }
     }
 }
