@@ -235,13 +235,11 @@ But it shouldn't be a problem, especially when compared to `registry.compile`.
 
 #![feature(slicing_syntax)]
 #![feature(default_type_params)]
-#![feature(macro_rules)]
 
 extern crate term;
 extern crate typedef;
 extern crate metafactory;
 
-mod macros;
 pub mod registry;
 pub mod error_printer;
 pub mod container;
