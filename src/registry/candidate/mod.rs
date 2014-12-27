@@ -30,6 +30,7 @@ impl DefinitionCandidate {
 pub struct GroupCandidate {
     pub collection_typedef: TypeDef,
     pub aggregate: Aggregate<'static>,
+    pub member_count: u32,
 }
 
 #[allow(dead_code)]
@@ -38,6 +39,7 @@ impl GroupCandidate {
         GroupCandidate {
             collection_typedef: aggregate.get_container_type(),
             aggregate: aggregate,
+            member_count: 0,
         }
     }
 

@@ -183,7 +183,7 @@ mod test {
     fn one_of_should_not_return_error_if_no_dependencies() {
         let mut registry = Registry::new();
 
-        registry.one_of("miracles", "miracle", "happened").insert();
+        registry.one_of("miracles", "happened").insert();
 
         let error_summary = validate_and_summarize(&registry);
 
@@ -216,7 +216,8 @@ mod test {
         let mut registry = Registry::new();
 
         registry
-            .one_of("miracles", "miracle", |_reason: int, _side_effects: bool| "happened")
+            .one_of("miracles", |_reason: int, _side_effects: bool| "happened")
+            .with_id("miracle")
             .add_arg("reason")
             .add_arg("side_effects")
             .insert();

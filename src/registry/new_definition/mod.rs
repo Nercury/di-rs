@@ -67,9 +67,29 @@ impl<'a> NewDefinition<'a> {
         self
     }
 
+    pub fn in_group(
+        mut self,
+        collection_id: &str
+    )
+        -> NewDefinition<'a>
+    {
+        self.params.collection_id = Some(collection_id.to_string());
+        self
+    }
+
+    pub fn with_id(
+        mut self,
+        id: &str
+    )
+        -> NewDefinition<'a>
+    {
+        self.params.id = id.to_string();
+        self
+    }
+
     pub fn insert(self) -> &'a mut Registry {
         let registry = self.registry;
-        registry.finalize(
+        registry.define(
             self.params.collection_id,
             self.params.id.as_slice(),
             self.params.value,

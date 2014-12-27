@@ -37,13 +37,14 @@ fn main() {
     ;
 
     registry
-        .one_of("miracles", "missing_miracle", |reason: &'static str| reason)
+        .one_of("miracles", |reason: &'static str| reason)
+        .with_id("missing_mirracle")
         .add_arg("miracle_reason")
         .insert()
     ;
 
     registry
-        .one_of("miracles", "with_bad_type", true)
+        .one_of("miracles", true)
         .insert()
     ;
 

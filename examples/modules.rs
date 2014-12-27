@@ -7,7 +7,7 @@ fn main() {
     ;
 
     registry
-        .one_of("printers", "first_printer", |name: String| {
+        .one_of("printers", |name: String| {
             |val: &str| println!("{}, {}", name, val);
         })
         .with_arg("first_name")
@@ -15,7 +15,7 @@ fn main() {
     ;
 
     registry
-        .one_of("printers", "second_printer", |name: &'static str| {
+        .one_of("printers", |name: &'static str| {
             |val: &str| println!("{}, {}", name, val);
         })
         .add_arg("second_name")

@@ -89,7 +89,7 @@ use di::registry::Registry;
 
 fn enable_redis_logs(registry: &mut Registry) {
     registry
-        .one_of("backends", "redis_backend", |redis| {
+        .one_of("backends", |redis| {
             box RedisBackend::new(redis) as Box<Backend>
         })
         .add_arg("redis") // It will need "redis"

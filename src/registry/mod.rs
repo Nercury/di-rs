@@ -73,26 +73,25 @@ impl Registry {
         self.define_group_if_not_exists(collection_id, Aggregate::new::<T>());
     }
 
-    fn define_group_if_not_exists(&mut self, collection_id: &str, type_aggregate: Aggregate<'static>) {
-        if !self.groups.contains_key(collection_id) {
-            self.groups.insert(
-                collection_id.to_string(),
-                GroupCandidate::new(type_aggregate)
-            );
-        }
-    }
-
-    pub fn one_of<'r, T: 'static + ToMetaFactory>(&'r mut self, collection_id: &str, id: &str, value: T)
+    pub fn one_of<'r, T: 'static + ToMetaFactory>(&'r mut self, collection_id: &str, value: T)
         -> NewDefinition<'r>
     {
+        let mut id;
         let metafactory = value.to_metafactory();
 
         self.define_group_if_not_exists(collection_id, metafactory.new_aggregate());
 
+        if let Some(group) = self.groups.get_mut(collection_id) {
+            group.member_count += 1;
+            id = format!("{}`{}", collection_id, group.member_count);
+        } else {
+            panic!("Expected to find defined group.")
+        }
+
         NewDefinition::new(
             self,
             Some(collection_id.to_string()),
-            id,
+            id.as_slice(),
             metafactory
         )
     }
@@ -109,7 +108,7 @@ impl Registry {
     }
 
     pub fn insert_one<T: 'static + ToMetaFactory>(&mut self, id: &str, value: T) {
-        self.finalize(
+        self.define(
             None,
             id,
             value.to_metafactory(),
@@ -117,16 +116,16 @@ impl Registry {
         );
     }
 
-    pub fn insert_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, id: &str, value: T) {
-        self.finalize(
-            Some(collection_id.to_string()),
-            id,
-            value.to_metafactory(),
-            Vec::new()
-        );
+    fn define_group_if_not_exists(&mut self, collection_id: &str, type_aggregate: Aggregate<'static>) {
+        if !self.groups.contains_key(collection_id) {
+            self.groups.insert(
+                collection_id.to_string(),
+                GroupCandidate::new(type_aggregate)
+            );
+        }
     }
 
-    fn finalize(&mut self, collection_id: Option<String>, id: &str, value: Box<MetaFactory + 'static>, args: Vec<String>) {
+    fn define(&mut self, collection_id: Option<String>, id: &str, value: Box<MetaFactory + 'static>, args: Vec<String>) {
         if let Some(overriden_candidate) = self.definitions.remove(id) {
             match self.overriden_definitions.entry(id.to_string()) {
                 Entry::Vacant(entry) => { entry.set(vec![overriden_candidate]); },
