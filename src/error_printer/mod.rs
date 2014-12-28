@@ -1,4 +1,6 @@
 use registry::error;
+use std::collections::HashMap;
+use std::collections::hash_map;
 
 mod pretty_terminal;
 
@@ -51,11 +53,47 @@ pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
             w.eol();
         },
         &error::CompileError::CircularDependency(ref error) => {
-            w.error("Error: Circular dependency:");
+            w.error("Error: ");
+            w.text("Circular dependency:");
             w.eol();
+
+            let culprit = match error.path.iter()
+                .fold(
+                    HashMap::<String, u32>::new(),
+                    |a, v| {
+                        let mut acc = a;
+                        match acc.entry(v.to_string()) {
+                            hash_map::Entry::Vacant(entry) => {
+                                entry.set(1);
+                            },
+                            hash_map::Entry::Occupied(mut entry) => {
+                                *entry.get_mut() += 1;
+                            },
+                        };
+                        acc
+                    }
+                )
+                .into_iter()
+                .max_by(
+                    |&(_, v)| v
+                ) {
+                    Some((c, _)) => Some(c),
+                    None => None,
+                };
+
+            let mut first = true;
             for def in error.path.iter() {
                 w.layout(" |> ");
-                w.definition(def.as_slice());
+                if first {
+                    first = false;
+                } else {
+                    w.text("depends on ");
+                }
+                if Some(def.clone()) == culprit {
+                    w.error(def.as_slice());
+                } else {
+                    w.definition(def.as_slice());
+                }
                 w.eol();
             }
         },

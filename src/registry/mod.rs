@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::collections::{ BTreeMap, BTreeSet, HashMap };
-use std::collections::btree_map::{ Entry };
+use std::collections::btree_map;
+use std::collections::hash_map;
 
 use metafactory::{ ToMetaFactory, MetaFactory };
 use metafactory::aggregate::{ Aggregate };
@@ -53,13 +54,12 @@ impl Registry {
         self.validators.push(box validator);
     }
 
-    fn create_missing_factory(
+    fn create_factory(
         &self,
         groups: &BTreeMap<String, BTreeSet<&str>>,
-        factory_map: &mut HashMap<String, Box<Any>>,
         dependency_chain: &mut Vec<String>,
         id: &str
-    ) -> Result<(), CircularDependency> {
+    ) -> Result<Box<Any>, CircularDependency> {
         dependency_chain.push(id.to_string());
 
         // Find if this is a definition or a group.
@@ -78,7 +78,6 @@ impl Registry {
 
                 Some(self.create_definition_factory(
                     groups,
-                    factory_map,
                     dependency_chain,
                     id,
                     definition
@@ -103,7 +102,6 @@ impl Registry {
 
                     Some(self.create_group_factory(
                         groups,
-                        factory_map,
                         dependency_chain,
                         id,
                         group,
@@ -122,63 +120,63 @@ impl Registry {
     fn create_definition_factory(
         &self,
         groups: &BTreeMap<String, BTreeSet<&str>>,
-        factory_map: &mut HashMap<String, Box<Any>>,
         dependency_chain: &mut Vec<String>,
         id: &str,
         definition: &DefinitionCandidate
-    ) -> Result<(), CircularDependency> {
+    ) -> Result<Box<Any>, CircularDependency> {
+
+        let mut argument_factories = Vec::<Box<Any>>::with_capacity(definition.arg_sources.len());
 
         for source in definition.arg_sources.iter() {
-            let factory_contains_id = match factory_map.get(source) {
-                None => false,
-                _ => true,
+            match self.create_factory(
+                groups,
+                dependency_chain,
+                source.as_slice()
+            ) {
+                Err(error) => return Err(error),
+                Ok(factory) => argument_factories.push(factory),
             };
-            if !factory_contains_id {
-                match self.create_missing_factory(
-                    groups,
-                    factory_map,
-                    dependency_chain,
-                    source.as_slice()
-                ) {
-                    Err(error) => return Err(error),
-                    _ => (),
-                };
-            }
         }
 
-        Ok(())
+        Ok(
+            definition.metafactory.new(argument_factories)
+                .ok()
+                .expect(
+                    format!(
+                        "failed to create factory {} with arguments \"{}\" - most likely argument types are not the same",
+                        id,
+                        definition.arg_sources.connect("\", \"")
+                    ).as_slice()
+                )
+        )
     }
 
     fn create_group_factory(
         &self,
         groups: &BTreeMap<String, BTreeSet<&str>>,
-        factory_map: &mut HashMap<String, Box<Any>>,
         dependency_chain: &mut Vec<String>,
         id: &str,
         group: &GroupCandidate,
         group_sources: &BTreeSet<&str>
     )
-        -> Result<(), CircularDependency>
+        -> Result<Box<Any>, CircularDependency>
     {
+        let mut argument_factories = Vec::<Box<Any>>::with_capacity(group_sources.len());
+
         for source in group_sources.iter() {
-            let factory_contains_id = match factory_map.get(&source.to_string()) {
-                None => false,
-                _ => true,
+            match self.create_factory(
+                groups,
+                dependency_chain,
+                *source
+            ) {
+                Err(error) => return Err(error),
+                Ok(factory) => argument_factories.push(factory),
             };
-            if !factory_contains_id {
-                match self.create_missing_factory(
-                    groups,
-                    factory_map,
-                    dependency_chain,
-                    source.as_slice()
-                ) {
-                    Err(error) => return Err(error),
-                    _ => (),
-                };
-            }
         }
 
-        Ok(())
+        Ok(group.aggregate.new_factory(
+            argument_factories
+        ))
     }
 
     pub fn compile(&self) -> Result<Container, Vec<CompileError>> {
@@ -193,21 +191,18 @@ impl Registry {
 
         if error_summary.len() == 0 {
             for (id, definition) in self.definitions.iter() {
-                let factory_contains_id = match factory_map.get(id) {
-                    None => false,
-                    _ => true,
+                let create_factory_result = self.create_factory(
+                    &groups,
+                    &mut Vec::<String>::new(),
+                    id.as_slice()
+                );
+                match create_factory_result {
+                    Err(error) => {
+                        error_summary.push(CompileError::CircularDependency(error));
+                        break;
+                    },
+                    Ok(factory) => { factory_map.insert(id.to_string(), factory); },
                 };
-                if !factory_contains_id {
-                    match self.create_missing_factory(
-                        &groups,
-                        &mut factory_map,
-                        &mut Vec::<String>::new(),
-                        id.as_slice()
-                    ) {
-                        Err(error) => error_summary.push(CompileError::CircularDependency(error)),
-                        _ => (),
-                    };
-                }
             }
         }
 
@@ -272,10 +267,10 @@ impl Registry {
             .filter(|&(_, v)| v.collection_id != None)
         {
             match groups.entry(value.collection_id.clone().unwrap()) {
-                Entry::Occupied(mut entry) => {
+                btree_map::Entry::Occupied(mut entry) => {
                     entry.get_mut().insert(id.as_slice());
                 },
-                Entry::Vacant(entry) => {
+                btree_map::Entry::Vacant(entry) => {
                     let mut set: BTreeSet<&str> = BTreeSet::new();
                     set.insert(id.as_slice());
                     entry.set(set);
@@ -298,8 +293,8 @@ impl Registry {
     fn define(&mut self, collection_id: Option<String>, id: &str, value: Box<MetaFactory + 'static>, args: Vec<String>) {
         if let Some(overriden_candidate) = self.definitions.remove(id) {
             match self.overriden_definitions.entry(id.to_string()) {
-                Entry::Vacant(entry) => { entry.set(vec![overriden_candidate]); },
-                Entry::Occupied(mut entry) => { entry.get_mut().push(overriden_candidate); },
+                btree_map::Entry::Vacant(entry) => { entry.set(vec![overriden_candidate]); },
+                btree_map::Entry::Occupied(mut entry) => { entry.get_mut().push(overriden_candidate); },
             };
         }
 
