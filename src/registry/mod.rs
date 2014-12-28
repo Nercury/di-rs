@@ -1,7 +1,6 @@
 use std::any::Any;
 use std::collections::{ BTreeMap, BTreeSet, HashMap };
 use std::collections::btree_map;
-use std::collections::hash_map;
 
 use metafactory::{ ToMetaFactory, MetaFactory };
 use metafactory::aggregate::{ Aggregate };
@@ -14,7 +13,6 @@ use self::error::{ CompileError, CircularDependency };
 
 mod candidate;
 
-pub mod argument_builder;
 pub mod new_definition;
 pub mod error;
 pub mod validator;
@@ -103,7 +101,6 @@ impl Registry {
                     Some(self.create_group_factory(
                         groups,
                         dependency_chain,
-                        id,
                         group,
                         group_dependencies
                     ))
@@ -155,7 +152,6 @@ impl Registry {
         &self,
         groups: &BTreeMap<String, BTreeSet<&str>>,
         dependency_chain: &mut Vec<String>,
-        id: &str,
         group: &GroupCandidate,
         group_sources: &BTreeSet<&str>
     )
@@ -190,7 +186,7 @@ impl Registry {
         let groups = self.collect_group_dependencies();
 
         if error_summary.len() == 0 {
-            for (id, definition) in self.definitions.iter() {
+            for id in self.definitions.keys() {
                 let create_factory_result = self.create_factory(
                     &groups,
                     &mut Vec::<String>::new(),

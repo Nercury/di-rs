@@ -26,14 +26,12 @@ impl DefinitionCandidate {
 }
 
 /// Group candidate value.
-#[allow(dead_code)]
 pub struct GroupCandidate {
     pub collection_typedef: TypeDef,
     pub aggregate: Aggregate<'static>,
     pub member_count: u32,
 }
 
-#[allow(dead_code)]
 impl GroupCandidate {
     pub fn new(aggregate: Aggregate<'static>) -> GroupCandidate {
         GroupCandidate {
@@ -41,13 +39,5 @@ impl GroupCandidate {
             aggregate: aggregate,
             member_count: 0,
         }
-    }
-
-    pub fn get_collection_typedef(&self) -> TypeDef {
-        self.collection_typedef.clone()
-    }
-
-    pub fn take_collection_factory(self) -> Aggregate<'static> {
-        self.aggregate
     }
 }

@@ -57,6 +57,7 @@ pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
             w.text("Circular dependency:");
             w.eol();
 
+            // Find repeated path item.
             let culprit = match error.path.iter()
                 .fold(
                     HashMap::<String, u32>::new(),
@@ -84,6 +85,7 @@ pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
             let mut first = true;
             for def in error.path.iter() {
                 w.layout(" |> ");
+
                 if first {
                     first = false;
                 } else {
@@ -94,6 +96,7 @@ pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
                 } else {
                     w.definition(def.as_slice());
                 }
+
                 w.eol();
             }
         },
