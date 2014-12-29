@@ -39,7 +39,7 @@ Of course, ungrouped dependencies are also available.
 ## Documentation
 
 - [Read overview and motivation for creating this library](http://nercury.github.io/di-rs)
-- [Jump directly to `Registry` examples](http://nercury.github.io/di-rs)
+- [Jump directly to `Registry` examples](http://nercury.github.io/di-rs/di/registry/struct.Registry.html)
 
 ## Usage
 
