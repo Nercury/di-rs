@@ -1,3 +1,9 @@
+/*!
+
+Registry validators used at the start of container compillation.
+
+*/
+
 use registry::error;
 use registry::Registry;
 

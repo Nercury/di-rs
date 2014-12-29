@@ -1,3 +1,10 @@
+/*!
+
+Checks for overriden dependencies and adds duplicate dependency errors for
+them.
+
+*/
+
 use registry::error;
 use registry::Registry;
 use registry::candidate::DefinitionCandidate;

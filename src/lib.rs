@@ -11,17 +11,14 @@
 
 This page contains an abstract (although with few examples) overview
 of this dependency injection container. To see more fine-grained
-usage examples without much prose, browse the [Registry](registry/index.html)
+usage examples without much prose, browse the [Registry](registry/struct.Registry.html)
 documentation.
 
 # Overview
 
 ## Declarative feature configuration
 
-The primary motivation of this library is to create a mechanism
-that helps to separate concept of a "feature" from libraries used.
-
-For example, if a project needs X, Y and Z features, it should be
+If a project needs X, Y and Z features, it should be
 possible to declare a list of these features, and the features should
 discover each other and configure themselves.
 
@@ -304,33 +301,28 @@ That's where `one_of` method with factory `Aggregate` came from.
 [symfony2-container-component]: http://symfony.com/doc/current/components/dependency_injection/introduction.html
 [symfony2-tagged-services]: http://symfony.com/doc/current/components/dependency_injection/tags.html
 
-## Features can be libraries
+## Higher-level features and dependencies
 
-As I briefly mentioned before, it is possible to extract "features"
-out of the low-level libraries into separate libraries. Now I will talk
-what I mean by "features".
+As I briefly mentioned before, my motivation for creating this library
+is managing the feature decoupling. Now I will talk
+what I mean by "feature".
 
-The worst case scenario in huge applications happens when low level tools
+The worst case scenario in huge application happens when the low level tools
 that need to be reliable become coupled to some idiosyncrasies of the
-business.
+project.
 
-When I say "business", I mean the client. Client can be your usual money-paying
-client or simply users of some application (if it is open source) - it does
-not matter.
+What user (project) wants (requires) does not usually live well with the idea
+of having a stable code. Likewise, replacing crucial library does not live
+well with the stability the user (project) expects (needs).
 
-What client wants does not usually live well with the idea of having stable
-code. Likewise, replacing crucial library does not live well with the
-stability the client or user expects.
+Ultimately, these things should live in separate libraries. To distinguish
+these libraries, I call code that is responsible for project a "feature", and
+the low-level tools simply "libraries".
 
-Ultimately, these things should live in separate libraries. However, the
-complexity of client needs is initally so trivial, that they do not seem
-to deserve a special treatment. However, when code related to them noticeably
-grows, I would try to refactor it away.
-
-This library is intended to be one of the ways to manage that. The
-dependency injection container should live at the project-level. It should
-register the available libraries to do what needs to be done, and additionaly
-provide the "extension" points.
+This `di` library is intended to be one of the ways to manage separation
+of features from libraries. The `di` should live at the project-level.
+It should register the available libraries to do what needs to be done,
+and additionaly provide the "extension" points.
 
 Then, the functionality that is specific only to current project should
 be implemented as extension (over `one_of`) or replacement (over `override`

@@ -1,8 +1,14 @@
+/*!
+
+Structures for storing definition information in `Registry`.
+
+*/
+
 use metafactory::aggregate::Aggregate;
 use metafactory::MetaFactory;
 use typedef::TypeDef;
 
-/// Definition candidate.
+/// Information about the definition which was added to the `Registry`.
 pub struct DefinitionCandidate {
     pub metafactory: Box<MetaFactory + 'static>,
     pub arg_sources: Vec<String>,
@@ -10,6 +16,7 @@ pub struct DefinitionCandidate {
 }
 
 impl DefinitionCandidate {
+    /// Create new `DefinitionCandidate`.
     pub fn new(
         metafactory: Box<MetaFactory + 'static>,
         arg_sources: Vec<String>,
@@ -25,7 +32,7 @@ impl DefinitionCandidate {
     }
 }
 
-/// Group candidate value.
+/// Information about definition group which was added to the `Registry`.
 pub struct GroupCandidate {
     pub collection_typedef: TypeDef,
     pub aggregate: Aggregate<'static>,
@@ -33,6 +40,7 @@ pub struct GroupCandidate {
 }
 
 impl GroupCandidate {
+    /// Create new `GroupCandidate`.
     pub fn new(aggregate: Aggregate<'static>) -> GroupCandidate {
         GroupCandidate {
             collection_typedef: aggregate.get_container_type(),

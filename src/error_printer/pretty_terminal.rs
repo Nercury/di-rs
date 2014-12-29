@@ -1,6 +1,13 @@
+/*!
+
+Pretty printing to terminal output, with colors.
+
+*/
+
 use term;
 use super::ErrorWriter;
 
+/// Pretty printer output for terminal.
 pub struct PrettyTerminalOutput {
     color_error: Option<term::color::Color>,
     color_success: Option<term::color::Color>,

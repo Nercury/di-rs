@@ -1,9 +1,16 @@
+/*!
+
+Structures that contain detailed validation errors.
+
+*/
+
 use typedef::TypeDef;
 use std::collections::{ VecMap, BTreeMap, HashSet };
 use std::collections::btree_map::{ Entry };
 
 use registry::candidate::{ DefinitionCandidate };
 
+/// Possible compillation errors.
 pub enum CompileError {
     DuplicateDefinitions(DuplicateDefinitions),
     ArgumentCountMismatch(ArgumentCountMismatch),
@@ -12,12 +19,14 @@ pub enum CompileError {
     CircularDependency(CircularDependency),
 }
 
+/// Definition argument with type and dependency name.
 #[deriving(Clone)]
 pub struct Argument {
     pub typedef: TypeDef,
     pub source: String,
 }
 
+/// Definition information with id, collection id, type and arguments.
 #[deriving(Clone)]
 pub struct Definition {
     pub id: String,
@@ -42,12 +51,15 @@ impl Definition {
     }
 }
 
+/// Information about duplicated definition.
 #[deriving(Clone)]
 pub struct Duplicate {
     pub definition: Definition,
     pub count: uint,
 }
 
+/// Information about incorrect dependency types with lists of required types
+/// and mismatched types.
 pub struct IncorrectDepencencyTypes {
     pub id: String,
     pub collection_id: Option<String>,
@@ -79,6 +91,9 @@ impl IncorrectDepencencyTypes {
     }
 }
 
+/// Circular dependency information.
+///
+/// Contains a dependency path where last item depends on some previous item.
 pub struct CircularDependency {
     pub path: Vec<String>,
 }
@@ -95,6 +110,8 @@ impl CircularDependency {
     }
 }
 
+/// Information about missing dependencies with definition id and missing
+/// dependency names.
 pub struct DependenciesNotFound {
     pub id: String,
     pub missing_dependencies: HashSet<String>,
@@ -114,6 +131,8 @@ impl DependenciesNotFound {
     }
 }
 
+/// Information about argument count mismatch between definition and
+/// specified dependency arguments.
 pub struct ArgumentCountMismatch {
     pub id: String,
     pub collection_id: Option<String>,
@@ -139,6 +158,7 @@ impl ArgumentCountMismatch {
     }
 }
 
+/// List of duplicate definitions.
 pub struct DuplicateDefinitions {
     pub aliases: BTreeMap<String, Duplicate>,
 }

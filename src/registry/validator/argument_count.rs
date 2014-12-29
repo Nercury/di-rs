@@ -1,3 +1,9 @@
+/*!
+
+Checks for incorrect dependency counts.
+
+*/
+
 use registry::error;
 use registry::Registry;
 

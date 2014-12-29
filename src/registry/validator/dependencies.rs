@@ -1,3 +1,9 @@
+/*!
+
+Checks for missing dependencies and incorrect dependency types.
+
+*/
+
 use typedef::TypeDef;
 
 use std::iter::repeat;

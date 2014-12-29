@@ -1,7 +1,32 @@
 /*!
+
+Contains utilities such as `Registry` to build centralized value
+construction `Container`.
+*/
+
+use std::any::Any;
+use std::collections::{ BTreeMap, BTreeSet, HashMap };
+use std::collections::btree_map;
+
+use metafactory::{ ToMetaFactory, MetaFactory };
+use metafactory::aggregate::{ Aggregate };
+
+use container::Container;
+
+use self::new_definition::{ NewDefinition };
+use self::candidate::{ GroupCandidate, DefinitionCandidate };
+use self::error::{ CompileError, CircularDependency };
+
+mod candidate;
+
+pub mod new_definition;
+pub mod error;
+pub mod validator;
+
+/**
 Use `Registry` to build and initialize `Container`.
 
-The `Registry` is mutable container of `definitions` and their
+The `Registry` is mutable container of value factory `definitions` and their
 groups. Definition is added using `one` method variants, method group
 is added by registering a definition that belongs to group using `one_of`
 method variants.
@@ -110,26 +135,6 @@ match registry.compile() {
 The errors contains detailed information about all errors at once. Console
 applications can use provided pretty printer.
 */
-
-use std::any::Any;
-use std::collections::{ BTreeMap, BTreeSet, HashMap };
-use std::collections::btree_map;
-
-use metafactory::{ ToMetaFactory, MetaFactory };
-use metafactory::aggregate::{ Aggregate };
-
-use container::Container;
-
-use self::new_definition::{ NewDefinition };
-use self::candidate::{ GroupCandidate, DefinitionCandidate };
-use self::error::{ CompileError, CircularDependency };
-
-mod candidate;
-
-pub mod new_definition;
-pub mod error;
-pub mod validator;
-
 pub struct Registry {
     /// Contains a list of group candidates.
     groups: BTreeMap<String, GroupCandidate>,
@@ -138,11 +143,18 @@ pub struct Registry {
     /// Contains a list of definitions that were overriden while building
     /// the registry - so we can at least show some kind of warning.
     overriden_definitions: BTreeMap<String, Vec<DefinitionCandidate>>,
-
+    /// Validator list that is run before the compilation.
     validators: Vec<Box<validator::Validator + 'static>>,
 }
 
 impl Registry {
+    /// Produces a new `Registry`.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// let mut registry = di::Registry::new();
+    /// ```
     pub fn new() -> Registry {
         let mut registry = Registry {
             groups: BTreeMap::new(),

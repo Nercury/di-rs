@@ -1,9 +1,16 @@
+/*!
+
+Utilities for pretty printing container compilation errors.
+
+*/
+
 use registry::error;
 use std::collections::HashMap;
 use std::collections::hash_map;
 
 mod pretty_terminal;
 
+/// Abstracts away the error output target.
 pub trait ErrorWriter {
     fn error(&mut self, m: &str);
     fn success(&mut self, m: &str);
@@ -18,6 +25,7 @@ pub trait ErrorWriter {
     fn flush(&mut self);
 }
 
+/// Print container compilation errors to terminal output.
 pub fn pretty_print(errors: &Vec<error::CompileError>) {
     let mut writer = pretty_terminal::PrettyTerminalOutput::new();
     for error in errors.iter() {
@@ -25,6 +33,7 @@ pub fn pretty_print(errors: &Vec<error::CompileError>) {
     }
 }
 
+/// Print single container error to custom output.
 pub fn pretty_print_single(w: &mut ErrorWriter, error: &error::CompileError) {
     match error {
         &error::CompileError::DuplicateDefinitions(ref error) => {
@@ -192,7 +201,7 @@ fn print_defs_in_sentence(w: &mut ErrorWriter, names: Vec<String>) {
     }
 }
 
-pub fn pretty_print_missing_dependencies(w: &mut ErrorWriter, error: &error::ArgumentCountMismatch) {
+fn pretty_print_missing_dependencies(w: &mut ErrorWriter, error: &error::ArgumentCountMismatch) {
     let arg_sourcesc = error.arg_sources.len();
 
     for (source, typedef) in error.arg_sources.iter().zip(error.arg_types.iter()) {
@@ -214,7 +223,7 @@ pub fn pretty_print_missing_dependencies(w: &mut ErrorWriter, error: &error::Arg
     }
 }
 
-pub fn pretty_print_definition(w: &mut ErrorWriter, definition: &error::Definition) {
+fn pretty_print_definition(w: &mut ErrorWriter, definition: &error::Definition) {
     w.definition(definition.id.as_slice());
 
     let argc = definition.args.len();
