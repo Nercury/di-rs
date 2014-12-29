@@ -117,15 +117,15 @@ This is recommended pattern:
 let mut registry = di::Registry::new();
 
 // Build the registry.
-registry.insert_one("a", 5i);
+registry.insert_one("a", 5i32);
 // < registry ... >
 
 match registry.compile() {
     Ok(container) => {
         // Get a factory which will be used for the application lifetime
         // to construct a value.
-        if let Some(a_factory) = container.get::<int>("a") {
-            assert_eq!(5i, a_factory.take());
+        if let Some(a_factory) = container.get::<i32>("a") {
+            assert_eq!(5, a_factory.take());
         }
     },
     Err(errors) => di::error_printer::pretty_print(&errors),
@@ -177,6 +177,22 @@ impl Registry {
         self.validators.push(box validator);
     }
 
+    /**
+    Compile a new `Container` that contains validated factories for
+    all definitions.
+
+    ## Example
+
+    ```
+    # let mut registry = di::Registry::new();
+    match registry.compile() {
+        Ok(container) => {
+            // Validated successfuly, can be used.
+        },
+        Err(errors) => di::error_printer::pretty_print(&errors),
+    }
+    ```
+    */
     pub fn compile(&self) -> Result<Container, Vec<CompileError>> {
         let mut error_summary = Vec::<CompileError>::new();
 
@@ -227,10 +243,160 @@ impl Registry {
         }
     }
 
-    pub fn may_be_empty<T: 'static>(&mut self, collection_id: &str) {
-        self.define_group_if_not_exists(collection_id, Aggregate::new::<T>());
+    /**
+    Insert a new definition without arguments.
+
+    ## Example
+
+    ```
+    # let mut registry = di::Registry::new();
+    registry.insert_one("a", 5i32); // Clonable value
+    registry.insert_one("b", || -> i32 { 5 }); // Closure
+
+    match registry.compile() {
+        Ok(container) => {
+            if let Some(a) = container.get::<i32>("a") {
+                assert_eq!(5, a.take());
+            }
+            if let Some(b) = container.get::<i32>("b") {
+                assert_eq!(5, b.take());
+            }
+        },
+        Err(errors) => di::error_printer::pretty_print(&errors),
+    }
+    ```
+
+    */
+    pub fn insert_one<T: 'static + ToMetaFactory>(&mut self, id: &str, value: T) {
+        self.define(
+            None,
+            id,
+            value.to_metafactory(),
+            Vec::new()
+        );
     }
 
+    /**
+    Insert a new definition into a group, without arguments.
+
+    Definition group has the Vec<T> for the definition of T type.
+
+    ## Example
+
+    ```
+    # let mut registry = di::Registry::new();
+    registry.insert_one_of("a", 1i32); // Clonable value
+    registry.insert_one_of("a", || -> i32 { 2 }); // Closure
+
+    match registry.compile() {
+        Ok(container) => {
+            if let Some(a) = container.get::<Vec<i32>>("a") {
+                assert_eq!(vec![ 1, 2 ], a.take());
+            }
+        },
+        Err(errors) => di::error_printer::pretty_print(&errors),
+    }
+    ```
+    */
+    pub fn insert_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, value: T) {
+        let mut id;
+        let metafactory = value.to_metafactory();
+
+        self.define_group_if_not_exists(collection_id, metafactory.new_aggregate());
+
+        if let Some(group) = self.groups.get_mut(collection_id) {
+            group.member_count += 1;
+            id = format!("{}`{}", collection_id, group.member_count);
+        } else {
+            panic!("Expected to find defined group.")
+        }
+
+        self.define(
+            Some(collection_id.to_string()),
+            id.as_slice(),
+            metafactory,
+            Vec::new()
+        );
+    }
+
+    /**
+    Insert a new definition using fluent interface.
+
+    This allows to specify definition dependencies and use closures with
+    arguments.
+
+    Browse [`NewDefinition`](new_definition/struct.NewDefinition.html)
+    documentation for complete examples.
+
+    ## Example
+
+    ```
+    # let mut registry = di::Registry::new();
+    registry
+        .one("a", || -> i32 { 5 })
+        .insert();
+
+    registry
+        .one("b", |a: i32| -> i32 { a + 3 })
+        .with_arg("a")
+        .insert();
+
+    match registry.compile() {
+        Ok(container) => {
+            if let Some(a) = container.get::<i32>("a") {
+                assert_eq!(5, a.take());
+            }
+            if let Some(b) = container.get::<i32>("b") {
+                assert_eq!(5 + 3, b.take());
+            }
+        },
+        Err(errors) => di::error_printer::pretty_print(&errors),
+    }
+    ```
+    */
+    pub fn one<'r, T: 'static + ToMetaFactory>(&'r mut self, id: &str, value: T)
+        -> NewDefinition<'r>
+    {
+        NewDefinition::new(
+            self,
+            None,
+            id,
+            value.to_metafactory()
+        )
+    }
+
+    /**
+    Insert a new definition into a group using fluent interface.
+
+    This allows to specify definition dependencies and use closures with
+    arguments.
+
+    Definition group has the Vec<T> for the definition of T type.
+
+    ## Example
+
+    ```
+    # let mut registry = di::Registry::new();
+    registry
+        .one_of("values", 1i32)
+        .with_id("a")
+        .insert();
+
+    registry
+        .one_of("values", |a: i32| -> i32 { a + 2 })
+        .with_arg("a")
+        .insert();
+
+    match registry.compile() {
+        Ok(container) => {
+            if let Some(a) = container.get::<Vec<i32>>("values") {
+                assert_eq!(vec![ 1, 1 + 2 ], a.take());
+            }
+        },
+        Err(errors) => di::error_printer::pretty_print(&errors),
+    }
+    ```
+    */
     pub fn one_of<'r, T: 'static + ToMetaFactory>(&'r mut self, collection_id: &str, value: T)
         -> NewDefinition<'r>
     {
@@ -254,45 +420,34 @@ impl Registry {
         )
     }
 
-    pub fn one<'r, T: 'static + ToMetaFactory>(&'r mut self, id: &str, value: T)
-        -> NewDefinition<'r>
-    {
-        NewDefinition::new(
-            self,
-            None,
-            id,
-            value.to_metafactory()
-        )
+    /**
+    Specify that a group can be empty.
+
+    ## Example
+
+    ```
+    # let mut registry = di::Registry::new();
+    registry
+        .one("sum", |values: Vec<i32>| values.into_iter().fold(0i32, |a, i| a + 1))
+        .with_arg("values")
+        .insert();
+
+    // If there is no definition of any member of "values", our "sum"
+    // will still work and receive empty list.
+    registry.may_be_empty::<i32>("values");
+
+    match registry.compile() {
+        Ok(container) => {
+            if let Some(sum) = container.get::<i32>("sum") {
+                assert_eq!(0, sum.take());
+            }
+        },
+        Err(errors) => di::error_printer::pretty_print(&errors),
     }
-
-    pub fn insert_one<T: 'static + ToMetaFactory>(&mut self, id: &str, value: T) {
-        self.define(
-            None,
-            id,
-            value.to_metafactory(),
-            Vec::new()
-        );
-    }
-
-    pub fn insert_one_of<T: 'static + ToMetaFactory>(&mut self, collection_id: &str, value: T) {
-        let mut id;
-        let metafactory = value.to_metafactory();
-
-        self.define_group_if_not_exists(collection_id, metafactory.new_aggregate());
-
-        if let Some(group) = self.groups.get_mut(collection_id) {
-            group.member_count += 1;
-            id = format!("{}`{}", collection_id, group.member_count);
-        } else {
-            panic!("Expected to find defined group.")
-        }
-
-        self.define(
-            Some(collection_id.to_string()),
-            id.as_slice(),
-            metafactory,
-            Vec::new()
-        );
+    ```
+    */
+    pub fn may_be_empty<T: 'static>(&mut self, collection_id: &str) {
+        self.define_group_if_not_exists(collection_id, Aggregate::new::<T>());
     }
 
     fn collect_group_dependencies<'r>(&'r self) -> BTreeMap<String, BTreeSet<&'r str>> {
@@ -310,6 +465,12 @@ impl Registry {
                     set.insert(id.as_slice());
                     entry.set(set);
                 }
+            }
+        }
+
+        for id in self.groups.keys() {
+            if !groups.contains_key(id) {
+                groups.insert(id.to_string(), BTreeSet::new());
             }
         }
 
