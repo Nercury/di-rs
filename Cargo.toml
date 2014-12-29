@@ -1,7 +1,7 @@
 [package]
 
 name = "di"
-version = "0.1.0"
+version = "0.1.1"
 authors = [ "Nerijus Arlauskas <nercury@gmail.com>" ]
 
 documentation = "http://nercury.github.io/di-rs/di/index.html"
@@ -15,7 +15,7 @@ keywords = [
 
 license = "MIT"
 
-description = "Dependency injection container. Pre-release, not usable yet."
+description = "Dependency injection container."
 
 [lib]
 name = "di"
