@@ -257,10 +257,12 @@ returned by container should never fail. If they do, it is a bug.
 
 # Discussion
 
+This is opionated part.
+
 ## Why did this library happen
 
 I wanted to implement DI mechanism for Rust because I had great success
-with it before. The idea of "container" and "registering" definitions to
+with it before. The idea of "container" and "registering" definitions in
 it [comes from Symfony2][symfony2-container-component] framework.
 
 However, I intentionaly chose to avoid implementing things the same way
@@ -271,39 +273,72 @@ will always return a new value. If you really, really need them singletons,
 well, you will find out how to work around that. What? You need MUTABLE
 SINGLETONS? Go away.
 
-The initialization mechanism requires a closure. If you do not like
-that, well, it is possible to implement `metafactory::ToMetafactory` trait
-for anything you would like to use as definition.
+The initialization mechanism requires a closure or clonable value.
+If you do not like that, well, it is possible to implement
+`metafactory::ToMetafactory` trait for anything you would like to use
+for value construction.
 
-There is no lazy loading. Frankly, this is not PHP.
+It was possible to use container itself as an argument for service construction.
+It was highly discouraged anti-pattern. So, no such thing here.
+
+The container was highly coupled to the way configuration is loaded. I
+consider configuration not a concern of this library, therefore nothing
+like that will be implemented.
+
+There was a way to register "passes" for compilation and let various bundles
+to modify the registry before the container is actually built. I might
+consider adding this.
+
+There is no "priority" yet for aggregates. I am a bit weary of this "feature"
+based on the hours spent hunting down services that load in wrong order.
+But I am considering that ability to explicitly "override" some definition
+might be ok.
 
 There is one other pattern that is a bit burried in Symfony2 di: it is the
 ability to "tag" services and then have the container inject all of them
 based on that "tag". [Using that is not straightforward][symfony2-tagged-services].
-However, I found that it was the key of decoupling features properly, so I chose
-to make them __very__ easy to use equivalent functionality in this library.
-That's where `one_of` method came from.
+However, I found that it was the key for decoupling features properly, so I chose
+to make it __very__ easy to use the equivalent functionality in this library.
+That's where `one_of` method with factory `Aggregate` came from.
 
 [symfony2-container-component]: http://symfony.com/doc/current/components/dependency_injection/introduction.html
 [symfony2-tagged-services]: http://symfony.com/doc/current/components/dependency_injection/tags.html
 
 ## Features can be libraries
 
-When project feature list grows, different features must use the same
-resources and respond to the same events. So, there needs to be some kind of
-mechanism to __plug-in__ our feature into them. And then another feature.
-And then yet another.
+As I briefly mentioned before, it is possible to extract "features"
+out of the low-level libraries into separate libraries. Now I will talk
+what I mean by "features".
 
-This becomes a problem when the addition or removal of a feature
-requires developer to go all over the code and mechanically modify
-countless if/match statements. It is a symptom that it is possible
-to make a mechanism for plugging this and similar features in, and
-move the feature itself to another library.
+The worst case scenario in huge applications happens when low level tools
+that need to be reliable become coupled to some idiosyncrasies of the
+business.
 
-Note that no special DI tool is needed to acomplish that: but it might be
-necessary if you need to put your development on highly configurable "rails"
-of same implementation mechanism. What I mean, learn it once, use
-everywhere.
+When I say "business", I mean the client. Client can be your usual money-paying
+client or simply users of some application (if it is open source) - it does
+not matter.
+
+What client wants does not usually live well with the idea of having stable
+code. Likewise, replacing crucial library does not live well with the
+stability the client or user expects.
+
+Ultimately, these things should live in separate libraries. However, the
+complexity of client needs is initally so trivial, that they do not seem
+to deserve a special treatment. However, when code related to them noticeably
+grows, I would try to refactor it away.
+
+This library is intended to be one of the ways to manage that. The
+dependency injection container should live at the project-level. It should
+register the available libraries to do what needs to be done, and additionaly
+provide the "extension" points.
+
+Then, the functionality that is specific only to current project should
+be implemented as extension (over `one_of`) or replacement (over `override`
+(which is not done yet :P)).
+
+## Usability in actual plugins
+
+This needs to be investigated. Might be fun.
 
 ## The true cost of a factory
 

@@ -1,7 +1,7 @@
 use metafactory::{ MetaFactory };
 use registry::Registry;
 
-pub struct ArgumentBuilder {
+struct ArgumentBuilder {
     pub arg_sources: Vec<String>,
 }
 
@@ -29,7 +29,7 @@ impl ArgumentBuilder {
     }
 }
 
-pub struct NewDefinitionParams {
+struct NewDefinitionParams {
     pub collection_id: Option<String>,
     pub id: String,
     pub value: Box<MetaFactory + 'static>,
@@ -46,9 +46,9 @@ impl NewDefinitionParams {
 }
 
 pub struct NewDefinition<'a> {
-    pub registry: &'a mut Registry,
-    pub params: NewDefinitionParams,
-    pub arg_builder: ArgumentBuilder,
+    registry: &'a mut Registry,
+    params: NewDefinitionParams,
+    arg_builder: ArgumentBuilder,
 }
 
 impl<'a> NewDefinition<'a> {
