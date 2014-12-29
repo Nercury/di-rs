@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/Nercury/di-rs.svg?branch=master)](https://travis-ci.org/Nercury/di-rs)
 
-This library re-implements dependency injection container in Rust
+This library implements dependency injection container for Rust
 mimicking the way it is done in other languages and
 frameworks.
 
