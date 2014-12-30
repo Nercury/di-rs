@@ -265,10 +265,8 @@ it [comes from Symfony2][symfony2-container-component] framework.
 However, I intentionaly chose to avoid implementing things the same way
 Symfony2 does.
 
-For example, the factories do not return singletons. This `di` library
-will always return a new value. If you really, really need them singletons,
-well, you will find out how to work around that. What? You need MUTABLE
-SINGLETONS? Go away.
+For example, the factories do not return singletons by default. However,
+they can be easily added using clonable value over `Rc` wrapper.
 
 The initialization mechanism requires a closure or clonable value.
 If you do not like that, well, it is possible to implement
