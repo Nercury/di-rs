@@ -1,7 +1,7 @@
 [package]
 
 name = "di"
-version = "0.1.1"
+version = "0.1.2"
 authors = [ "Nerijus Arlauskas <nercury@gmail.com>" ]
 
 documentation = "http://nercury.github.io/di-rs/di/index.html"
