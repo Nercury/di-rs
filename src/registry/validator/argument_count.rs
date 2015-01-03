@@ -9,7 +9,7 @@ use registry::Registry;
 
 use super::Validator;
 
-#[deriving(Copy)]
+#[derive(Copy)]
 pub struct ArgumentCountValidator;
 
 impl Validator for ArgumentCountValidator {

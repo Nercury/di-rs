@@ -14,7 +14,7 @@ use registry::Registry;
 
 use super::Validator;
 
-#[deriving(Copy)]
+#[derive(Copy)]
 pub struct DependencyValidator;
 
 struct DefinitionRequirements<'a> {

@@ -20,14 +20,14 @@ pub enum CompileError {
 }
 
 /// Definition argument with type and dependency name.
-#[deriving(Clone)]
+#[derive(Clone)]
 pub struct Argument {
     pub typedef: TypeDef,
     pub source: String,
 }
 
 /// Definition information with id, collection id, type and arguments.
-#[deriving(Clone)]
+#[derive(Clone)]
 pub struct Definition {
     pub id: String,
     pub collection_id: Option<String>,
@@ -52,7 +52,7 @@ impl Definition {
 }
 
 /// Information about duplicated definition.
-#[deriving(Clone)]
+#[derive(Clone)]
 pub struct Duplicate {
     pub definition: Definition,
     pub count: uint,

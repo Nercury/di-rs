@@ -11,7 +11,7 @@ use registry::candidate::DefinitionCandidate;
 
 use super::Validator;
 
-#[deriving(Copy)]
+#[derive(Copy)]
 pub struct NoOverridesValidator;
 
 impl Validator for NoOverridesValidator {
