@@ -1,5 +1,7 @@
 ### [Broken right now, because mechanism that made it work is gone](https://github.com/rust-lang/rust/issues/20770)
 
+However, I have a plan: [See the Roadmap issue #1](https://github.com/Nercury/di-rs/issues/1).
+
 # Dependency Injection container for Rust
 
 [![Build Status](https://travis-ci.org/Nercury/di-rs.svg?branch=master)](https://travis-ci.org/Nercury/di-rs)
