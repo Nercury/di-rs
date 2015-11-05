@@ -32,226 +32,6 @@ the way they were created__.
 The simpliest form of dependency abstraction is use of trait objects
 as construction arguments.
 
-As an example, a `Logger` trait can be passed as an argument to something
-that needs a `Logger`. Our library would depend on the abstraction,
-and it would not need to care how this actual `Logger` logs the messages.
-
-Without using this "di" library:
-
-```rust
-trait Logger { fn log(&self, m: &str); }
-
-struct ConsoleLogger;
-impl Logger for ConsoleLogger {
-    fn log(&self, m: &str) {
-        println!("{}", m);
-    }
-}
-
-struct OurLibrary;
-impl OurLibrary {
-    fn new(logger: Box<Logger>) -> OurLibrary {
-        logger.log("Library created!");
-        OurLibrary
-    }
-}
-
-OurLibrary::new(box ConsoleLogger); // will print "Library created!"
-```
-
-Pluging it into "di" looks like this:
-
-```rust
-# trait Logger { fn log(&self, m: &str); }
-# struct ConsoleLogger;
-# impl Logger for ConsoleLogger {
-#     fn log(&self, m: &str) {
-#         println!("{}", m);
-#     }
-# }
-# struct OurLibrary;
-# impl OurLibrary {
-#     fn new(logger: Box<Logger>) -> OurLibrary {
-#         logger.log("Library created!");
-#         OurLibrary
-#     }
-# }
-let mut registry = di::Registry::new();
-
-registry.insert_one("logger", || box ConsoleLogger as Box<Logger>);
-
-registry
-    .one("our_library", |logger: Box<Logger + 'static>| {
-        logger.log("Hello world!");
-        OurLibrary
-    })
-    .with_arg("logger")
-    .insert();
-
-// The compilation phase is going to validate the registry
-// definitions when the application is started.
-match registry.compile() {
-    Ok(container) => {
-        container.get::<OurLibrary>("our_library").unwrap()
-            .take(); // will print "Library created!"
-    },
-    Err(errors) => di::error_printer::pretty_print(&errors),
-}
-```
-
-## Aggregate construction
-
-Sometimes some dependency might be optional. Or maybe there
-are multiple valid dependencies for the same interface.
-
-Let's say there can be multiple `Backend` implementations for `Logger`.
-It would be great if our `Logger` could depend on any amount of `Backend`
-abstractions (without actually depending on implementations)
-and get them collected into one list which could be injected as
-an argument. This library can do that.
-
-In this example, the concrete implementation would be `RedisBackend`, which
-would also require some kind of `Redis` as another dependency.
-
-```rust
-use di::Registry;
-# struct Redis;
-# impl Redis { fn new() -> Redis { Redis } }
-# struct RedisBackend { runner: Redis };
-# impl RedisBackend {
-#     fn new(runner: Redis) -> RedisBackend {
-#         RedisBackend { runner: runner }
-#     }
-# }
-# impl Backend for RedisBackend {}
-# trait Backend {}
-# struct Logger { backends: Vec<Box<Backend + 'static>> }
-# impl Logger {
-#     fn new(backends: Vec<Box<Backend + 'static>>) -> Logger {
-#         Logger {
-#             backends: backends
-#         }
-#     }
-#     fn log(&self, _m: &str) {}
-# }
-
-fn enable_redis_logs(registry: &mut Registry) {
-    registry
-        .one_of("backends", |redis| {
-            box RedisBackend::new(redis) as Box<Backend>
-        })
-        .add_arg("redis") // It will need "redis"
-        .insert();
-
-    registry
-        .one("redis", || Redis::new())
-        .insert();
-}
-
-fn enable_logger(registry: &mut Registry) {
-    registry
-        .one("logger", |backends| {
-            Logger::new(backends)
-        })
-        .add_arg("backends")
-        .insert();
-
-    registry.may_be_empty::<Box<Backend>>("backends");
-}
-
-let mut registry = Registry::new();
-
-// List of features in our application.
-enable_redis_logs(&mut registry);
-enable_logger(&mut registry);
-
-match registry.compile() {
-    Ok(container) => {
-        // Get a factory that constructs the logger object.
-        let logger_factory = container.get::<Logger>("logger").unwrap();
-        // Actually invoke construction.
-        let logger = logger_factory.take();
-
-        logger.log("Loaded!");
-    },
-    Err(errors) => {
-        di::error_printer::pretty_print(&errors);
-        panic!("expected no errors");
-    }
-}
-```
-
-Obviously, the above is equivalent to this simple code:
-
-```rust
-# struct Redis;
-# impl Redis { fn new() -> Redis { Redis } }
-# struct RedisBackend { runner: Redis };
-# impl RedisBackend {
-#     fn new(runner: Redis) -> RedisBackend {
-#         RedisBackend { runner: runner }
-#     }
-# }
-# impl Backend for RedisBackend {}
-# trait Backend {}
-# struct Logger { backends: Vec<Box<Backend + 'static>> }
-# impl Logger {
-#     fn new(backends: Vec<Box<Backend + 'static>>) -> Logger {
-#         Logger {
-#             backends: backends
-#         }
-#     }
-#     fn log(&self, _m: &str) {}
-# }
-fn get_logger_factory() -> Logger {
-    // Regis logs feature
-    let redis = Redis::new();
-    let redis_backend = box RedisBackend::new(redis) as Box<Backend>;
-
-    // Logger feature
-    let logger = Logger::new(vec![redis_backend]);
-
-    logger
-}
-
-// Use logger:
-let logger = get_logger_factory();
-logger.log("hello");
-```
-
-In fact, `registry.compile` constructs internal execution structure
-that is very similar to `get_logger_factory`, but it is done at
-runtime.
-
-If the "redis logs" is not enabled, the `enable_logger` code does not
-need re-compilation, and constructed `get_logger_factory` won't
-have any code related to redis:
-
-```ignore
-fn get_logger_factory() -> Logger {
-    // Logger feature
-    let logger = Logger::new(Vec::new());
-
-    logger
-}
-```
-
-## The roles of `Registry` and `Container`
-
-`Registry` is mutable, `Container` is immutable.
-`Registry` is changed on initialization, then it validates all definitions and
-"compiles" the `Container`, which is used at runtime.
-Further changes to `Registry` can be used to produce a new, different
-`Container`.
-
-HashMap and Any are used only on `Registry` configuration phase.
-If there are any mistakes, the validator should produce error messages
-that pinpoint problems accurately.
-
-The compiled container contains initialization trees constructed from
-registry definitions. If the `Container` construction succeeds, factories
-returned by container should never fail. If they do, it is a bug.
-
 # Discussion
 
 This is opionated part.
@@ -330,51 +110,98 @@ be implemented as extension (over `one_of`) or replacement (over `override`
 
 This needs to be investigated. Might be fun.
 
-## The true cost of a factory
-
-`Container` will return copies of constructed factories,
-which are nothing more than object-initialization trees that can be invoked.
-
-While it was certainly possible to eliminate a lot of indirection in this
-tree using unsafe hacks, this library currently uses __no__ unsafe code.
-
-This is a approximate example of calls the
-`Logger` construction with `redis_logs` enabled would make:
-
- - `Factory<Logger>.take()` - wraps `Logger` getter mechanism in struct
- - `Closure_ManyArg_1<Vec<Box<Backend>>, Logger>.take()` - closure dependency scope
-     - `AggregateGetter<Vec<Box<Backend>>>.take()` - aggregates ("one_of") dependencies
-        - `Factory<Box<Backend>>.take()` - wraps getter mechanism in struct
-        - `Closure_ManyArg_1<Redis, Box<Backend>>.take()` - closure dependency scope
-            - `Factory<Redis>.take()`
-            - `Closure_ZeroArg<Redis>.take()` - call Redis construction closure
-            - `Rc<RefCell<|| -> Redis>>.call()`
-        - `Rc<RefCell<|Redis| -> Box<Backend>>>.call()` - call `RedisBackend` construction closure
- - `Rc<RefCell<|Vec<Box<Redis>>| -> Logger>>.call()` - call `Logger` construction closure
-
-The constly point here is probably a `Rc<RefCell>` and allocation of
-`Vec<Box<Backends>>`, though this is just a guess at this point.
-
-## Further ideas
-
-Currently registry definitions are initialized from clonable values or closures.
-It is possible to extend it with unboxed closures and channels by implementing
-`ToMetafactory` trait for them in `metafactory` library.
-
-It might be possible to compile the `Container` at actual compilation instead of
-runtime. That would probably require a compiler plugin.
 */
 
-#![feature(slicing_syntax)]
-#![feature(default_type_params)]
+use std::any::{ Any, TypeId };
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
+use std::ops::{ Deref, DerefMut };
 
-extern crate term;
-extern crate typedef;
-extern crate metafactory;
+#[derive(Debug)]
+pub struct Scope<T> {
+    pub obj: T,
+    childs: Vec<Box<Any>>,
+}
 
-pub use registry::Registry;
-pub use container::Container;
+impl<T> Deref for Scope<T> {
+    type Target = T;
 
-pub mod registry;
-pub mod error_printer;
-pub mod container;
+    fn deref(&self) -> &T {
+        &self.obj
+    }
+}
+
+impl<T> DerefMut for Scope<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.obj
+    }
+}
+
+pub trait WithAll<T> {
+    fn with_all(self, deps: &Dependencies) -> Scope<T>;
+}
+
+impl<T: Any> WithAll<T> for T {
+    fn with_all(self, deps: &Dependencies) -> Scope<T> {
+        deps.create_dependencies(self)
+    }
+}
+
+pub struct Dependencies {
+    constructors: HashMap<TypeId, Vec<Box<Fn(&Dependencies, &Any) -> Box<Any>>>>,
+}
+
+impl Dependencies {
+    pub fn new() -> Dependencies {
+        Dependencies {
+            constructors: HashMap::new()
+        }
+    }
+
+    pub fn create_dependencies<P: Any>(&self, obj: P) -> Scope<P> {
+        match self.constructors.get(&TypeId::of::<P>()) {
+            Some(list) => {
+                let dependencies: Vec<_> = list.iter()
+                    .map(|any_constructor| any_constructor(&self, &obj))
+                    .collect();
+
+                Scope { obj: obj, childs: dependencies }
+            },
+            None => Scope { obj: obj, childs: vec![] },
+        }
+    }
+
+    pub fn on_one<P, C, F>(&mut self, constructor: F)
+        where
+            P: 'static + Any, C: 'static + Any,
+            F: for<'r> Fn(&'r Dependencies, &P) -> C + 'static
+    {
+        self.upsert(TypeId::of::<P>(), any_constructor(constructor));
+    }
+
+    fn upsert(
+        &mut self,
+        type_id: TypeId,
+        any_constructor: Box<Fn(&Dependencies, &Any) -> Box<Any>>
+    ) {
+        match self.constructors.entry(type_id) {
+            Entry::Occupied(mut list) => {
+                list.get_mut().push(any_constructor);
+            },
+            Entry::Vacant(e) => {
+                e.insert(vec![any_constructor]);
+            },
+        };
+    }
+
+}
+
+fn any_constructor<P, C, F>(constructor: F) -> Box<Fn(&Dependencies, &Any) -> Box<Any>>
+    where F: for<'r> Fn(&'r Dependencies, &P) -> C + 'static, P: 'static + Any, C: 'static + Any
+{
+    Box::new(move |deps: &Dependencies, parent: &Any| -> Box<Any> {
+        let concrete_parent = parent.downcast_ref::<P>().unwrap();
+        let child = constructor(deps, concrete_parent);
+        Box::new(child)
+    })
+}
