@@ -1,15 +1,27 @@
 extern crate di;
 
-use di::{ Deps, WithAll };
-use di::extension::On;
+use di::{ Deps, Parent, WithAll };
+use di::extension::{ On, OnMany };
+
+struct A;
 
 fn main() {
     let mut deps = Deps::new();
 
-    deps.on(|_, parent: &i32| println!("hello {:?}", parent));
-    deps.on(|deps, _: &i32| true.with_all(deps));
-    deps.on(|deps, _: &i32| false.with_all(deps));
-    deps.on(|_, parent: &bool| println!("bool {:?}!", parent));
+    deps.on(|parent: Parent<i32>| println!("hello {:?}", parent));
+    deps.on(|_: Parent<i32>| true);
+    deps.on(|_: Parent<i32>| false);
+    deps.on(|mut parent: Parent<bool>| {
+        println!("bool {:?}!", parent);
+        *parent = false;
+        A
+    });
+    deps.on_2(|val: &i32, flag: &bool| {
+
+    });
+    deps.on(|_: Parent<A>| {
+        println!("A was created!");
+    });
 
     5.with_all(&deps);
 }

@@ -9,7 +9,7 @@ pub struct Deps {
     type_child_constructors: HashMap<
         TypeId,
         Vec<Box<
-            Fn(&Deps, &Any) -> Option<Box<Any>>
+            Fn(&Deps, &mut Any) -> Option<Box<Any>>
         >>
     >,
 }
@@ -24,14 +24,14 @@ impl Deps {
     /// Create dependencies for specified `obj` and return a wrapper `Scope` object.
     ///
     /// The wrapper `Scope` keeps ownership of all children together with parent object.
-    pub fn create_deps<P: Any>(&self, obj: P) -> Scope<P> {
+    pub fn create_deps<P: Any>(&self, mut obj: P) -> Scope<P> {
         match self.type_child_constructors.get(&TypeId::of::<P>()) {
             // if there are type child constructors
             Some(list) => {
                 // run each child constructor and receive list of objects that will be kept inside
                 // the parent scope.
                 let deps: Vec<_> = list.iter()
-                    .filter_map(|any_constructor| any_constructor(&self, &obj))
+                    .filter_map(|any_constructor| any_constructor(&self, &mut obj))
                     .collect();
 
                 Scope { obj: obj, childs: deps }
@@ -45,7 +45,7 @@ impl Deps {
     /// created.
     pub fn register_child_constructor<P: Any>(
         &mut self,
-        any_constructor: Box<Fn(&Deps, &Any) -> Option<Box<Any>>>
+        any_constructor: Box<Fn(&Deps, &mut Any) -> Option<Box<Any>>>
     ) {
         match self.type_child_constructors.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
@@ -57,6 +57,25 @@ impl Deps {
         };
     }
 
+}
+
+#[derive(Debug)]
+pub struct Parent<'a, T: 'a> {
+    pub obj: &'a mut T,
+}
+
+impl<'a, T> Deref for Parent<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.obj
+    }
+}
+
+impl<'a, T> DerefMut for Parent<'a, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.obj
+    }
 }
 
 #[derive(Debug)]

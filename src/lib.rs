@@ -13,7 +13,7 @@ mod deps;
 pub mod extension;
 
 use std::any::Any;
-pub use deps::{ Deps, Scope };
+pub use deps::{ Deps, Scope, Parent };
 
 pub trait WithAll<T> {
     fn with_all(self, deps: &Deps) -> Scope<T>;
