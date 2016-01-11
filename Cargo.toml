@@ -13,7 +13,7 @@ keywords = [
     "di", "dic", "dependency", "container", "injection"
 ]
 
-license = "MIT"
+license = "MIT OR Apache-2.0"
 
 description = "Dependency injection container."
 
