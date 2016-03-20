@@ -10,6 +10,8 @@ Refactoring DI into more rusty ownership-driven architecture.
 
 ## Usage
 
+__This library is being refactored.__
+
 Put this in your `Cargo.toml`:
 
 ```toml
