@@ -1,4 +1,4 @@
-# Dependency Injection container for Rust
+# Ownership-driven Dependency Injection for Rust
 
 [![Build Status](https://travis-ci.org/Nercury/di-rs.svg?branch=master)](https://travis-ci.org/Nercury/di-rs)
 

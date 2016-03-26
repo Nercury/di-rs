@@ -9,7 +9,7 @@ pub struct Deps {
     type_child_constructors: HashMap<
         TypeId,
         Vec<Box<
-            Fn(&Deps, &mut Any) -> Option<Box<Any>>
+            Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync
         >>
     >,
 }
@@ -45,7 +45,7 @@ impl Deps {
     /// created.
     pub fn register_child_constructor<P: Any>(
         &mut self,
-        any_constructor: Box<Fn(&Deps, &mut Any) -> Option<Box<Any>>>
+        any_constructor: Box<Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync>
     ) {
         match self.type_child_constructors.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
