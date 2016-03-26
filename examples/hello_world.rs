@@ -53,7 +53,7 @@ fn main() {
     let mut deps = Deps::new();
 
     deps.on(|_: Parent<Alpha>| AlphaExtension::new());
-    deps.on(|_: Parent<AlphaExtension>| AlphaExtension::new());
+    deps.on(|_: Parent<AlphaExtension>| AlphaExtensionExtension::new());
 
     let dep_refs = Arc::new(deps);
 
