@@ -2,7 +2,10 @@
 
 name = "di"
 version = "0.2.0"
-authors = [ "Nerijus Arlauskas <nercury@gmail.com>" ]
+authors = [
+  "Rust DI Developers",
+  "Nerijus Arlauskas <nercury@gmail.com>"
+]
 
 documentation = "http://nercury.github.io/di-rs/di/index.html"
 repository = "https://github.com/Nercury/di-rs"
@@ -13,7 +16,7 @@ keywords = [
     "di", "dependency", "injection"
 ]
 
-license = "MIT"
+license = "MIT OR Apache-2.0"
 
 description = "Ownership-driven dependency injection toolkit."
 
