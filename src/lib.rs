@@ -12,16 +12,48 @@
 mod deps;
 pub mod extension;
 
-use std::ops::Deref;
 use std::any::Any;
-pub use deps::{ Deps, Scope, Parent };
+pub use extension::On;
+pub use extension::OnMany;
+pub use deps::{ Deps, Features, Scope, Parent };
 
-pub trait WithAll<T> {
-    fn with_all<A: Deref<Target=Deps>>(self, deps: A) -> Scope<T>;
+pub trait WithDeps<T> {
+    fn with_deps(self, deps: &Deps) -> Scope<T>;
 }
 
-impl<T: Any> WithAll<T> for T {
-    fn with_all<A: Deref<Target=Deps>>(self, deps: A) -> Scope<T> {
+impl<T: Any> WithDeps<T> for T {
+    fn with_deps(self, deps: &Deps) -> Scope<T> {
         deps.create_deps(self)
     }
+}
+
+pub struct Expect<T: Any> {
+    response: Option<T>,
+}
+
+impl<T: Any> Expect<T> {
+    pub fn load(deps: &Deps) -> Result<T, ()> {
+        let expectation = Expect::<T> {
+            response: None,
+        };
+        let maybe_fullfilled = expectation.with_deps(deps).explode();
+        match maybe_fullfilled.response {
+            Some(value) => Ok(value),
+            None => Err(()),
+        }
+    }
+
+    pub fn replace(&mut self, value: T) -> Result<(), ()> {
+        if let Some(_) = self.response {
+            return Err(());
+        }
+
+        self.response = Some(value);
+
+        Ok(())
+    }
+}
+
+pub fn load_from<T: Any>(deps: &Deps) -> Result<T, ()> {
+    Expect::load(deps)
 }

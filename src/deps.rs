@@ -3,6 +3,10 @@ use std::ops::{ Deref, DerefMut };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
+pub trait Features {
+    fn register(&mut Deps);
+}
+
 pub struct Deps {
     /// List of functions that constructs all childs for a type
     /// and returns value wrapped in Any that must live as long as the parent type.
@@ -57,6 +61,11 @@ impl Deps {
         };
     }
 
+    /// Register a bunch of features at once.
+    pub fn with<F: Features>(&mut self) -> &mut Self {
+        F::register(self);
+        self
+    }
 }
 
 #[derive(Debug)]
@@ -82,6 +91,12 @@ impl<'a, T> DerefMut for Parent<'a, T> {
 pub struct Scope<T> {
     pub obj: T,
     childs: Vec<Box<Any>>,
+}
+
+impl<T> Scope<T> {
+    pub fn explode(self) -> T {
+        self.obj
+    }
 }
 
 impl<T> Deref for Scope<T> {
