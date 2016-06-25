@@ -15,6 +15,7 @@ pub mod extension;
 
 use std::any::Any;
 use std::fmt;
+use std::convert;
 pub use deps::{ Deps, Features, Scope };
 
 pub struct Collection<T> {
@@ -36,6 +37,12 @@ impl<T> Collection<T> {
 
     pub fn push(&mut self, item: T) {
         self.items.push(item)
+    }
+}
+
+impl<T> convert::AsRef<[T]> for Collection<T> {
+    fn as_ref(&self) -> &[T] {
+        &self.items
     }
 }
 
