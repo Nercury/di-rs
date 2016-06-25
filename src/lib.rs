@@ -15,7 +15,7 @@ pub mod extension;
 
 use std::any::Any;
 use std::fmt;
-pub use deps::{ Deps, Features, Scope, Parent };
+pub use deps::{ Deps, Features, Scope };
 
 pub struct Collection<T> {
     items: Vec<T>,

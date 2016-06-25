@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use { Deps, Parent };
+    use Deps;
     use std::sync::{ Arc, Mutex };
 
     #[derive(Clone)]
@@ -22,7 +22,7 @@ mod test {
 
         deps.on({
             let created_b_ref = created_b_ref.clone();
-            move |_: &Deps, a: Parent<A>| {
+            move |_: &Deps, a: &mut A| {
                 let b = B([&a.0[..], "+B"].concat());
                 *created_b_ref.lock().unwrap() = Some(b.clone());
                 b
@@ -42,11 +42,11 @@ mod test {
         // shared mutable reference to it
         let created_c_ref = Arc::new(Mutex::new(None));
 
-        deps.on(|_: &Deps, a: Parent<A>| B([&a.0[..], "+B"].concat()));
+        deps.on(|_: &Deps, a: &mut A| B([&a.0[..], "+B"].concat()));
 
         deps.on({
             let created_c_ref = created_c_ref.clone();
-            move |_: &Deps, b: Parent<B>| {
+            move |_: &Deps, b: &mut B| {
                 let c = C([&b.0[..], "+C"].concat());
                 *created_c_ref.lock().unwrap() = Some(c.clone());
                 c
@@ -62,7 +62,7 @@ mod test {
     fn creates_mutable_dependency() {
         let mut deps = Deps::new();
 
-        deps.on(|_: &Deps, mut a: Parent<A>| *a = A("Hi!".into()));
+        deps.on(|_: &Deps, a: &mut A| *a = A("Hi!".into()));
 
         let a = deps.create_for(A("Hello".into()));
 

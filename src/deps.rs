@@ -89,7 +89,7 @@ impl Deps {
     pub fn on_create<P, F>(&mut self, action: F)
         where
             P: 'static + Any,
-            F: for<'r> Fn(&Deps, Parent<P>) + 'static + Send + Sync
+            F: for<'r> Fn(&Deps, &mut P) + 'static + Send + Sync
     {
         match self.type_scope_created.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
@@ -105,7 +105,7 @@ impl Deps {
     pub fn on<P, C, F>(&mut self, constructor: F)
         where
             P: 'static + Any, C: 'static + Any,
-            F: for<'r> Fn(&Deps, Parent<P>) -> C + 'static + Send + Sync
+            F: for<'r> Fn(&Deps, &mut P) -> C + 'static + Send + Sync
     {
         self.register_child_constructor::<P>(
             into_constructor_with_child_deps(constructor)
@@ -118,7 +118,7 @@ impl Deps {
             F: for<'r> Fn(&Deps) -> C + 'static + Send + Sync
     {
         self.register_child_constructor::<Collection<C>>(
-            into_constructor_without_child_deps(move |deps: &Deps, mut parent: Parent<Collection<C>>| {
+            into_constructor_without_child_deps(move |deps: &Deps, parent: &mut Collection<C>| {
                 parent.push(constructor(deps))
             })
         );
@@ -126,51 +126,32 @@ impl Deps {
 }
 
 fn into_action_with_deps<P, F>(action: F) -> Box<Fn(&Deps, &mut Any) + Send + Sync>
-    where F: for<'r> Fn(&Deps, Parent<P>) + 'static + Send + Sync, P: 'static + Any
+    where F: for<'r> Fn(&Deps, &mut P) + 'static + Send + Sync, P: 'static + Any
 {
     Box::new(move |deps: &Deps, parent: &mut Any| {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
-        action(deps, Parent::<P> { obj: concrete_parent })
+        action(deps, concrete_parent)
     })
 }
 
 fn into_constructor_with_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync>
-    where F: for<'r> Fn(&Deps, Parent<P>) -> C + 'static + Send + Sync, P: 'static + Any, C: 'static + Any
+    where F: for<'r> Fn(&Deps, &mut P) -> C + 'static + Send + Sync, P: 'static + Any, C: 'static + Any
 {
     Box::new(move |deps: &Deps, parent: &mut Any| -> Option<Box<Any>> {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
-        let child = deps.create_for(constructor(deps, Parent::<P> { obj: concrete_parent }));
+        let child = deps.create_for(constructor(deps, concrete_parent));
         Some(Box::new(child))
     })
 }
 
 fn into_constructor_without_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync>
-    where F: for<'r> Fn(&Deps, Parent<P>) -> C + 'static + Send + Sync, P: 'static + Any
+    where F: for<'r> Fn(&Deps, &mut P) -> C + 'static + Send + Sync, P: 'static + Any
 {
     Box::new(move |deps: &Deps, parent: &mut Any| -> Option<Box<Any>> {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
-        constructor(deps, Parent::<P> { obj: concrete_parent });
+        constructor(deps, concrete_parent);
         None
     })
-}
-
-#[derive(Debug)]
-pub struct Parent<'a, T: 'a> {
-    pub obj: &'a mut T,
-}
-
-impl<'a, T> Deref for Parent<'a, T> {
-    type Target = T;
-
-    fn deref(&self) -> &T {
-        &self.obj
-    }
-}
-
-impl<'a, T> DerefMut for Parent<'a, T> {
-    fn deref_mut(&mut self) -> &mut T {
-        &mut self.obj
-    }
 }
 
 #[derive(Debug)]

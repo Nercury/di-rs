@@ -1,6 +1,6 @@
 extern crate di;
 
-use di::{ Deps, Parent };
+use di::Deps;
 use std::thread;
 use std::sync::Arc;
 
@@ -50,8 +50,8 @@ impl Drop for AlphaExtensionExtension {
 fn main() {
     let mut deps = Deps::new();
 
-    deps.on(|_: &Deps, _: Parent<Alpha>| AlphaExtension::new());
-    deps.on(|_: &Deps, _: Parent<AlphaExtension>| AlphaExtensionExtension::new());
+    deps.on(|_: &Deps, _: &mut Alpha| AlphaExtension::new());
+    deps.on(|_: &Deps, _: &mut AlphaExtension| AlphaExtensionExtension::new());
 
     let dep_refs = Arc::new(deps);
 
