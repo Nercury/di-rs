@@ -95,7 +95,7 @@ impl<T: Any> Expect<T> {
         let expectation = Expect::<T> {
             response: None,
         };
-        let maybe_fullfilled = try!(deps.create_for(expectation)).explode();
+        let maybe_fullfilled = try!(deps.scope(expectation)).explode();
         match maybe_fullfilled.response {
             Some(value) => Ok(value),
             None => Err(Box::new(Error::ExpectedDependencyNotFound)),

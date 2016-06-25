@@ -33,7 +33,7 @@ impl Deps {
     /// Create dependencies for specified `obj` and return a wrapper `Scope` object.
     ///
     /// The wrapper `Scope` keeps ownership of all children together with parent object.
-    pub fn create_for<P: Any>(&self, mut obj: P) -> Result<Scope<P>> {
+    pub fn scope<P: Any>(&self, mut obj: P) -> Result<Scope<P>> {
         match self.type_child_constructors.get(&TypeId::of::<P>()) {
             // if there are type child constructors
             Some(list) => {
@@ -64,7 +64,7 @@ impl Deps {
 
     /// Collect all the items registered as `collectable` into a `Collection` of that type.
     pub fn collect<C: Any>(&self) -> Result<Collection<C>> {
-        self.create_for(Collection::new()).map(|v| v.explode())
+        self.scope(Collection::new()).map(|v| v.explode())
     }
 
     /// Register child constructor that will be invoked when the parent `P` type is
@@ -83,7 +83,7 @@ impl Deps {
         };
     }
 
-    pub fn on_create<P, F>(&mut self, action: F)
+    pub fn on_created<P, F>(&mut self, action: F)
         where
             P: 'static + Any,
             F: for<'r> Fn(&Deps, &mut P) -> Result<()> + 'static + Send + Sync
@@ -99,7 +99,7 @@ impl Deps {
     }
 
     /// Single dependency on parent.
-    pub fn on<P, C, F>(&mut self, constructor: F)
+    pub fn scopable<P, C, F>(&mut self, constructor: F)
         where
             P: 'static + Any, C: 'static + Any,
             F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync
@@ -136,7 +136,7 @@ fn into_constructor_with_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &m
 {
     Box::new(move |deps: &Deps, parent: &mut Any| -> Result<Option<Box<Any>>> {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
-        let child = try!(deps.create_for(try!(constructor(deps, concrete_parent))));
+        let child = try!(deps.scope(try!(constructor(deps, concrete_parent))));
         Ok(Some(Box::new(child)))
     })
 }
