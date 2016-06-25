@@ -20,7 +20,7 @@ mod test {
         // shared mutable reference to it
         let created_b_ref = Arc::new(Mutex::new(None));
 
-        deps.scopable({
+        deps.chainable({
             let created_b_ref = created_b_ref.clone();
             move |_: &Deps, a: &mut A| {
                 let b = B([&a.0[..], "+B"].concat());
@@ -29,7 +29,7 @@ mod test {
             }
         });
 
-        deps.scope(A("Hello".into())).unwrap();
+        deps.chain(A("Hello".into())).unwrap();
 
         assert_eq!("Hello+B", (*created_b_ref.lock().unwrap()).clone().unwrap().0);
     }
@@ -42,9 +42,9 @@ mod test {
         // shared mutable reference to it
         let created_c_ref = Arc::new(Mutex::new(None));
 
-        deps.scopable(|_: &Deps, a: &mut A| Ok(B([&a.0[..], "+B"].concat())));
+        deps.chainable(|_: &Deps, a: &mut A| Ok(B([&a.0[..], "+B"].concat())));
 
-        deps.scopable({
+        deps.chainable({
             let created_c_ref = created_c_ref.clone();
             move |_: &Deps, b: &mut B| {
                 let c = C([&b.0[..], "+C"].concat());
@@ -53,7 +53,7 @@ mod test {
             }
         });
 
-        deps.scope(A("Hello".into())).unwrap();
+        deps.chain(A("Hello".into())).unwrap();
 
         assert_eq!("Hello+B+C", (*created_c_ref.lock().unwrap()).clone().unwrap().0);
     }
@@ -62,9 +62,9 @@ mod test {
     fn creates_mutable_dependency() {
         let mut deps = Deps::new();
 
-        deps.scopable(|_: &Deps, a: &mut A| {*a = A("Hi!".into()); Ok(())});
+        deps.chainable(|_: &Deps, a: &mut A| {*a = A("Hi!".into()); Ok(())});
 
-        let a = deps.scope(A("Hello".into())).unwrap();
+        let a = deps.chain(A("Hello".into())).unwrap();
 
         assert_eq!("Hi!", a.obj.0);
     }

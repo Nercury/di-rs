@@ -20,7 +20,7 @@ use std::convert;
 use std::result;
 use std::error;
 use std::vec;
-pub use deps::{ Deps, Scope };
+pub use deps::{ Deps, Chain };
 
 pub struct Collection<T> {
     items: Vec<T>,
@@ -95,7 +95,7 @@ impl<T: Any> Expect<T> {
         let expectation = Expect::<T> {
             response: None,
         };
-        let maybe_fullfilled = try!(deps.scope(expectation)).explode();
+        let maybe_fullfilled = try!(deps.chain(expectation)).explode();
         match maybe_fullfilled.response {
             Some(value) => Ok(value),
             None => Err(Box::new(Error::ExpectedDependencyNotFound)),

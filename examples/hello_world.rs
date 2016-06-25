@@ -50,22 +50,22 @@ impl Drop for AlphaExtensionExtension {
 fn main() {
     let mut deps = Deps::new();
 
-    deps.scopable(|_: &Deps, _: &mut Alpha| Ok(AlphaExtension::new()));
-    deps.scopable(|_: &Deps, _: &mut AlphaExtension| Ok(AlphaExtensionExtension::new()));
+    deps.chainable(|_: &Deps, _: &mut Alpha| Ok(AlphaExtension::new()));
+    deps.chainable(|_: &Deps, _: &mut AlphaExtension| Ok(AlphaExtensionExtension::new()));
 
     let dep_refs = Arc::new(deps);
 
     let a = thread::spawn({
         let a_deps = dep_refs.clone();
         move || {
-            a_deps.scope(Alpha::new()).unwrap();
+            a_deps.chain(Alpha::new()).unwrap();
         }
     });
 
     let b = thread::spawn({
         let b_deps = dep_refs.clone();
         move || {
-            b_deps.scope(Alpha::new()).unwrap();
+            b_deps.chain(Alpha::new()).unwrap();
         }
     });
 

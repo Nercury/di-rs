@@ -14,7 +14,7 @@ pub struct Deps {
             Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>> + Send + Sync
         >>
     >,
-    type_scope_created: HashMap<
+    type_chain_created: HashMap<
         TypeId,
         Vec<Box<
             Fn(&Deps, &mut Any) -> Result<()> + Send + Sync
@@ -26,19 +26,19 @@ impl Deps {
     pub fn new() -> Deps {
         Deps {
             type_child_constructors: HashMap::new(),
-            type_scope_created: HashMap::new(),
+            type_chain_created: HashMap::new(),
         }
     }
 
-    /// Create dependencies for specified `obj` and return a wrapper `Scope` object.
+    /// Create dependencies for specified `obj` and return a wrapper `Chain` object.
     ///
-    /// The wrapper `Scope` keeps ownership of all children together with parent object.
-    pub fn scope<P: Any>(&self, mut obj: P) -> Result<Scope<P>> {
+    /// The wrapper `Chain` keeps ownership of all children together with parent object.
+    pub fn chain<P: Any>(&self, mut obj: P) -> Result<Chain<P>> {
         match self.type_child_constructors.get(&TypeId::of::<P>()) {
             // if there are type child constructors
             Some(list) => {
                 // run each child constructor and receive list of objects that will be kept inside
-                // the parent scope.
+                // the parent chain.
                 let mut deps = Vec::new();
 
                 for any_constructor in list {
@@ -49,22 +49,22 @@ impl Deps {
                     };
                 }
 
-                if let Some(actions) = self.type_scope_created.get(&TypeId::of::<P>()) {
+                if let Some(actions) = self.type_chain_created.get(&TypeId::of::<P>()) {
                     for action in actions {
                         try!(action(&self, &mut obj));
                     }
                 }
 
-                Ok(Scope { obj: obj, childs: deps })
+                Ok(Chain { obj: obj, childs: deps })
             },
-            // if there are no type childs, wrap the type in scope anyways with empty child list.
-            None => Ok(Scope { obj: obj, childs: vec![] }),
+            // if there are no type childs, wrap the type in chain anyways with empty child list.
+            None => Ok(Chain { obj: obj, childs: vec![] }),
         }
     }
 
     /// Collect all the items registered as `collectable` into a `Collection` of that type.
     pub fn collect<C: Any>(&self) -> Result<Collection<C>> {
-        self.scope(Collection::new()).map(|v| v.explode())
+        self.chain(Collection::new()).map(|v| v.explode())
     }
 
     /// Register child constructor that will be invoked when the parent `P` type is
@@ -88,7 +88,7 @@ impl Deps {
             P: 'static + Any,
             F: for<'r> Fn(&Deps, &mut P) -> Result<()> + 'static + Send + Sync
     {
-        match self.type_scope_created.entry(TypeId::of::<P>()) {
+        match self.type_chain_created.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
                 list.get_mut().push(into_action_with_deps(action));
             },
@@ -99,7 +99,7 @@ impl Deps {
     }
 
     /// Single dependency on parent.
-    pub fn scopable<P, C, F>(&mut self, constructor: F)
+    pub fn chainable<P, C, F>(&mut self, constructor: F)
         where
             P: 'static + Any, C: 'static + Any,
             F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync
@@ -136,7 +136,7 @@ fn into_constructor_with_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &m
 {
     Box::new(move |deps: &Deps, parent: &mut Any| -> Result<Option<Box<Any>>> {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
-        let child = try!(deps.scope(try!(constructor(deps, concrete_parent))));
+        let child = try!(deps.chain(try!(constructor(deps, concrete_parent))));
         Ok(Some(Box::new(child)))
     })
 }
@@ -152,18 +152,18 @@ fn into_constructor_without_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps,
 }
 
 #[derive(Debug)]
-pub struct Scope<T> {
+pub struct Chain<T> {
     pub obj: T,
     childs: Vec<Box<Any>>,
 }
 
-impl<T> Scope<T> {
+impl<T> Chain<T> {
     pub fn explode(self) -> T {
         self.obj
     }
 }
 
-impl<T> Deref for Scope<T> {
+impl<T> Deref for Chain<T> {
     type Target = T;
 
     fn deref(&self) -> &T {
@@ -171,7 +171,7 @@ impl<T> Deref for Scope<T> {
     }
 }
 
-impl<T> DerefMut for Scope<T> {
+impl<T> DerefMut for Chain<T> {
     fn deref_mut(&mut self) -> &mut T {
         &mut self.obj
     }
