@@ -20,7 +20,7 @@ use std::convert;
 use std::result;
 use std::error;
 use std::vec;
-pub use deps::{ Deps, Features, Scope };
+pub use deps::{ Deps, Scope };
 
 pub struct Collection<T> {
     items: Vec<T>,

@@ -5,10 +5,6 @@ use std::collections::hash_map::Entry;
 use Result;
 use Collection;
 
-pub trait Features {
-    fn register(&mut Deps);
-}
-
 pub struct Deps {
     /// List of functions that constructs all childs for a type
     /// and returns value wrapped in Any that must live as long as the parent type.
@@ -85,12 +81,6 @@ impl Deps {
                 e.insert(vec![any_constructor]);
             },
         };
-    }
-
-    /// Register a bunch of features at once.
-    pub fn with<F: Features>(&mut self) -> &mut Self {
-        F::register(self);
-        self
     }
 
     pub fn on_create<P, F>(&mut self, action: F)
