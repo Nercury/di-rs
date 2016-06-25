@@ -15,6 +15,7 @@ pub mod extension;
 
 use std::any::Any;
 use std::fmt;
+use std::slice;
 use std::convert;
 pub use deps::{ Deps, Features, Scope };
 
@@ -43,6 +44,27 @@ impl<T> Collection<T> {
 impl<T> convert::AsRef<[T]> for Collection<T> {
     fn as_ref(&self) -> &[T] {
         &self.items
+    }
+}
+
+pub struct CollectionIter<'a, T: 'a> {
+    inner: slice::Iter<'a, T>,
+}
+
+impl<'a, T: 'a> Iterator for CollectionIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<&'a T> {
+        self.inner.next()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Collection<T> {
+    type IntoIter = CollectionIter<'a, T>;
+    type Item = &'a T;
+
+    fn into_iter(self) -> CollectionIter<'a, T> {
+        CollectionIter { inner: self.items.iter() }
     }
 }
 

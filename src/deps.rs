@@ -59,9 +59,9 @@ impl Deps {
         }
     }
 
-    /// Collect all the items of the type into a Vec.
-    pub fn collect<C: Any>(&self) -> Vec<C> {
-        self.create_for(Collection::new()).explode().into()
+    /// Collect all the items registered as `collectable` into a `Collection` of that type.
+    pub fn collect<C: Any>(&self) -> Collection<C> {
+        self.create_for(Collection::new()).explode()
     }
 
     /// Register child constructor that will be invoked when the parent `P` type is
