@@ -2,6 +2,7 @@ use std::any::{ Any, TypeId };
 use std::ops::{ Deref, DerefMut };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::error;
 use Collection;
 
 pub trait Features {
@@ -14,7 +15,7 @@ pub struct Deps {
     type_child_constructors: HashMap<
         TypeId,
         Vec<Box<
-            Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync
+            Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>, Box<error::Error>> + Send + Sync
         >>
     >,
     type_scope_created: HashMap<
@@ -36,15 +37,21 @@ impl Deps {
     /// Create dependencies for specified `obj` and return a wrapper `Scope` object.
     ///
     /// The wrapper `Scope` keeps ownership of all children together with parent object.
-    pub fn create_for<P: Any>(&self, mut obj: P) -> Scope<P> {
+    pub fn create_for<P: Any>(&self, mut obj: P) -> Result<Scope<P>, Box<error::Error>> {
         match self.type_child_constructors.get(&TypeId::of::<P>()) {
             // if there are type child constructors
             Some(list) => {
                 // run each child constructor and receive list of objects that will be kept inside
                 // the parent scope.
-                let deps: Vec<_> = list.iter()
-                    .filter_map(|any_constructor| any_constructor(&self, &mut obj))
-                    .collect();
+                let mut deps = Vec::new();
+
+                for any_constructor in list {
+                    match any_constructor(&self, &mut obj) {
+                        Ok(None) => continue,
+                        Ok(Some(dep)) => deps.push(dep),
+                        Err(any_err) => return Err(any_err),
+                    };
+                }
 
                 if let Some(actions) = self.type_scope_created.get(&TypeId::of::<P>()) {
                     for action in actions {
@@ -52,23 +59,23 @@ impl Deps {
                     }
                 }
 
-                Scope { obj: obj, childs: deps }
+                Ok(Scope { obj: obj, childs: deps })
             },
             // if there are no type childs, wrap the type in scope anyways with empty child list.
-            None => Scope { obj: obj, childs: vec![] },
+            None => Ok(Scope { obj: obj, childs: vec![] }),
         }
     }
 
     /// Collect all the items registered as `collectable` into a `Collection` of that type.
-    pub fn collect<C: Any>(&self) -> Collection<C> {
-        self.create_for(Collection::new()).explode()
+    pub fn collect<C: Any>(&self) -> Result<Collection<C>, Box<error::Error>> {
+        self.create_for(Collection::new()).map(|v| v.explode())
     }
 
     /// Register child constructor that will be invoked when the parent `P` type is
     /// created.
     pub fn register_child_constructor<P: Any>(
         &mut self,
-        any_constructor: Box<Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync>
+        any_constructor: Box<Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>, Box<error::Error>> + Send + Sync>
     ) {
         match self.type_child_constructors.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
@@ -105,7 +112,7 @@ impl Deps {
     pub fn on<P, C, F>(&mut self, constructor: F)
         where
             P: 'static + Any, C: 'static + Any,
-            F: for<'r> Fn(&Deps, &mut P) -> C + 'static + Send + Sync
+            F: for<'r> Fn(&Deps, &mut P) -> Result<C, Box<error::Error>> + 'static + Send + Sync
     {
         self.register_child_constructor::<P>(
             into_constructor_with_child_deps(constructor)
@@ -134,23 +141,23 @@ fn into_action_with_deps<P, F>(action: F) -> Box<Fn(&Deps, &mut Any) + Send + Sy
     })
 }
 
-fn into_constructor_with_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync>
-    where F: for<'r> Fn(&Deps, &mut P) -> C + 'static + Send + Sync, P: 'static + Any, C: 'static + Any
+fn into_constructor_with_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>, Box<error::Error>> + Send + Sync>
+    where F: for<'r> Fn(&Deps, &mut P) -> Result<C, Box<error::Error>> + 'static + Send + Sync, P: 'static + Any, C: 'static + Any
 {
-    Box::new(move |deps: &Deps, parent: &mut Any| -> Option<Box<Any>> {
+    Box::new(move |deps: &Deps, parent: &mut Any| -> Result<Option<Box<Any>>, Box<error::Error>> {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
-        let child = deps.create_for(constructor(deps, concrete_parent));
-        Some(Box::new(child))
+        let child = try!(deps.create_for(try!(constructor(deps, concrete_parent))));
+        Ok(Some(Box::new(child)))
     })
 }
 
-fn into_constructor_without_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync>
+fn into_constructor_without_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>, Box<error::Error>> + Send + Sync>
     where F: for<'r> Fn(&Deps, &mut P) -> C + 'static + Send + Sync, P: 'static + Any
 {
-    Box::new(move |deps: &Deps, parent: &mut Any| -> Option<Box<Any>> {
+    Box::new(move |deps: &Deps, parent: &mut Any| -> Result<Option<Box<Any>>, Box<error::Error>> {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
         constructor(deps, concrete_parent);
-        None
+        Ok(None)
     })
 }
 

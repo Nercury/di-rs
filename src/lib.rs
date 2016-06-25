@@ -83,7 +83,7 @@ impl<T: Any> Expect<T> {
         let expectation = Expect::<T> {
             response: None,
         };
-        let maybe_fullfilled = deps.create_for(expectation).explode();
+        let maybe_fullfilled = deps.create_for(expectation).unwrap().explode();
         match maybe_fullfilled.response {
             Some(value) => Ok(value),
             None => Err(()),

@@ -25,11 +25,11 @@ mod test {
             move |_: &Deps, a: &mut A| {
                 let b = B([&a.0[..], "+B"].concat());
                 *created_b_ref.lock().unwrap() = Some(b.clone());
-                b
+                Ok(b)
             }
         });
 
-        deps.create_for(A("Hello".into()));
+        deps.create_for(A("Hello".into())).unwrap();
 
         assert_eq!("Hello+B", (*created_b_ref.lock().unwrap()).clone().unwrap().0);
     }
@@ -42,18 +42,18 @@ mod test {
         // shared mutable reference to it
         let created_c_ref = Arc::new(Mutex::new(None));
 
-        deps.on(|_: &Deps, a: &mut A| B([&a.0[..], "+B"].concat()));
+        deps.on(|_: &Deps, a: &mut A| Ok(B([&a.0[..], "+B"].concat())));
 
         deps.on({
             let created_c_ref = created_c_ref.clone();
             move |_: &Deps, b: &mut B| {
                 let c = C([&b.0[..], "+C"].concat());
                 *created_c_ref.lock().unwrap() = Some(c.clone());
-                c
+                Ok(c)
             }
         });
 
-        deps.create_for(A("Hello".into()));
+        deps.create_for(A("Hello".into())).unwrap();
 
         assert_eq!("Hello+B+C", (*created_c_ref.lock().unwrap()).clone().unwrap().0);
     }
@@ -62,9 +62,9 @@ mod test {
     fn creates_mutable_dependency() {
         let mut deps = Deps::new();
 
-        deps.on(|_: &Deps, a: &mut A| *a = A("Hi!".into()));
+        deps.on(|_: &Deps, a: &mut A| {*a = A("Hi!".into()); Ok(())});
 
-        let a = deps.create_for(A("Hello".into()));
+        let a = deps.create_for(A("Hello".into())).unwrap();
 
         assert_eq!("Hi!", a.obj.0);
     }
