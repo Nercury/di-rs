@@ -8,13 +8,12 @@
 /*!
 
 */
+#![feature(specialization)]
 
 mod deps;
 pub mod extension;
 
 use std::any::Any;
-pub use extension::On;
-pub use extension::OnMany;
 pub use deps::{ Deps, Features, Scope, Parent };
 
 pub trait WithDeps<T> {

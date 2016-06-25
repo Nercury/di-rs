@@ -66,6 +66,25 @@ impl Deps {
         F::register(self);
         self
     }
+
+    /// Single dependency on parent.
+    pub fn on<P, C, F>(&mut self, constructor: F)
+        where
+            P: 'static + Any, C: 'static + Any,
+            F: for<'r> Fn(&Deps, Parent<P>) -> C + 'static + Send + Sync
+    {
+        self.register_child_constructor::<P>(into_constructor_with_deps(constructor));
+    }
+}
+
+fn into_constructor_with_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync>
+    where F: for<'r> Fn(&Deps, Parent<P>) -> C + 'static + Send + Sync, P: 'static + Any, C: 'static + Any
+{
+    Box::new(move |deps: &Deps, parent: &mut Any| -> Option<Box<Any>> {
+        let concrete_parent = parent.downcast_mut::<P>().unwrap();
+        let child = deps.create_deps(constructor(deps, Parent::<P> { obj: concrete_parent }));
+        Some(Box::new(child))
+    })
 }
 
 #[derive(Debug)]
