@@ -17,6 +17,8 @@ use std::any::Any;
 use std::fmt;
 use std::slice;
 use std::convert;
+use std::result;
+use std::error;
 pub use deps::{ Deps, Features, Scope };
 
 pub struct Collection<T> {
@@ -79,20 +81,20 @@ pub struct Expect<T: Any> {
 }
 
 impl<T: Any> Expect<T> {
-    pub fn load(deps: &Deps) -> Result<T, ()> {
+    pub fn load(deps: &Deps) -> Result<T> {
         let expectation = Expect::<T> {
             response: None,
         };
-        let maybe_fullfilled = deps.create_for(expectation).unwrap().explode();
+        let maybe_fullfilled = try!(deps.create_for(expectation)).explode();
         match maybe_fullfilled.response {
             Some(value) => Ok(value),
-            None => Err(()),
+            None => Err(Box::new(Error::ExpectedDependencyNotFound)),
         }
     }
 
-    pub fn replace(&mut self, value: T) -> Result<(), ()> {
+    pub fn replace(&mut self, value: T) -> Result<()> {
         if let Some(_) = self.response {
-            return Err(());
+            return Err(Box::new(Error::ExpectedDependencyWasAlreadyFullfilled));
         }
 
         self.response = Some(value);
@@ -101,6 +103,32 @@ impl<T: Any> Expect<T> {
     }
 }
 
-pub fn load_from<T: Any>(deps: &Deps) -> Result<T, ()> {
+pub fn load_from<T: Any>(deps: &Deps) -> Result<T> {
     Expect::load(deps)
 }
+
+#[derive(Debug)]
+pub enum Error {
+    ExpectedDependencyNotFound,
+    ExpectedDependencyWasAlreadyFullfilled,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::ExpectedDependencyNotFound => "Expected dependency not found".fmt(f),
+            Error::ExpectedDependencyWasAlreadyFullfilled => "Expected dependency was already fullfilled".fmt(f),
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &'static str {
+        match *self {
+            Error::ExpectedDependencyNotFound => "expected dependency not found",
+            Error::ExpectedDependencyWasAlreadyFullfilled => "expected dependency was already fullfilled",
+        }
+    }
+}
+
+pub type Result<T> = result::Result<T, Box<error::Error>>;
