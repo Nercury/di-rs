@@ -14,7 +14,36 @@ mod deps;
 pub mod extension;
 
 use std::any::Any;
+use std::fmt;
 pub use deps::{ Deps, Features, Scope, Parent };
+
+pub struct Collection<T> {
+    items: Vec<T>,
+}
+
+impl<T> fmt::Debug for Collection<T> where T: fmt::Debug {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_list().entries(self.items.iter()).finish()
+    }
+}
+
+impl<T> Collection<T> {
+    pub fn new() -> Collection<T> {
+        Collection {
+            items: Vec::new()
+        }
+    }
+
+    pub fn push(&mut self, item: T) {
+        self.items.push(item)
+    }
+}
+
+impl<T> Into<Vec<T>> for Collection<T> {
+    fn into(self) -> Vec<T> {
+        self.items
+    }
+}
 
 pub struct Expect<T: Any> {
     response: Option<T>,

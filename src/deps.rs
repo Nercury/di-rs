@@ -2,6 +2,7 @@ use std::any::{ Any, TypeId };
 use std::ops::{ Deref, DerefMut };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use Collection;
 
 pub trait Features {
     fn register(&mut Deps);
@@ -58,6 +59,11 @@ impl Deps {
         }
     }
 
+    /// Collect all the items of the type into a Vec.
+    pub fn collect<C: Any>(&self) -> Vec<C> {
+        self.create_for(Collection::new()).explode().into()
+    }
+
     /// Register child constructor that will be invoked when the parent `P` type is
     /// created.
     pub fn register_child_constructor<P: Any>(
@@ -101,7 +107,21 @@ impl Deps {
             P: 'static + Any, C: 'static + Any,
             F: for<'r> Fn(&Deps, Parent<P>) -> C + 'static + Send + Sync
     {
-        self.register_child_constructor::<P>(into_constructor_with_deps(constructor));
+        self.register_child_constructor::<P>(
+            into_constructor_with_child_deps(constructor)
+        );
+    }
+
+    pub fn collectable<C, F>(&mut self, constructor: F)
+        where
+            C: 'static + Any,
+            F: for<'r> Fn(&Deps) -> C + 'static + Send + Sync
+    {
+        self.register_child_constructor::<Collection<C>>(
+            into_constructor_without_child_deps(move |deps: &Deps, mut parent: Parent<Collection<C>>| {
+                parent.push(constructor(deps))
+            })
+        );
     }
 }
 
@@ -114,13 +134,23 @@ fn into_action_with_deps<P, F>(action: F) -> Box<Fn(&Deps, &mut Any) + Send + Sy
     })
 }
 
-fn into_constructor_with_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync>
+fn into_constructor_with_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync>
     where F: for<'r> Fn(&Deps, Parent<P>) -> C + 'static + Send + Sync, P: 'static + Any, C: 'static + Any
 {
     Box::new(move |deps: &Deps, parent: &mut Any| -> Option<Box<Any>> {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
         let child = deps.create_for(constructor(deps, Parent::<P> { obj: concrete_parent }));
         Some(Box::new(child))
+    })
+}
+
+fn into_constructor_without_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync>
+    where F: for<'r> Fn(&Deps, Parent<P>) -> C + 'static + Send + Sync, P: 'static + Any
+{
+    Box::new(move |deps: &Deps, parent: &mut Any| -> Option<Box<Any>> {
+        let concrete_parent = parent.downcast_mut::<P>().unwrap();
+        constructor(deps, Parent::<P> { obj: concrete_parent });
+        None
     })
 }
 
