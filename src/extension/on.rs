@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod test {
-    use { Deps, Parent, WithDeps };
+    use { Deps, Parent };
     use std::sync::{ Arc, Mutex };
 
     #[derive(Clone)]
@@ -29,7 +29,7 @@ mod test {
             }
         });
 
-        A("Hello".into()).with_deps(&deps);
+        deps.create_for(A("Hello".into()));
 
         assert_eq!("Hello+B", (*created_b_ref.lock().unwrap()).clone().unwrap().0);
     }
@@ -53,7 +53,7 @@ mod test {
             }
         });
 
-        A("Hello".into()).with_deps(&deps);
+        deps.create_for(A("Hello".into()));
 
         assert_eq!("Hello+B+C", (*created_c_ref.lock().unwrap()).clone().unwrap().0);
     }
@@ -64,7 +64,7 @@ mod test {
 
         deps.on(|_: &Deps, mut a: Parent<A>| *a = A("Hi!".into()));
 
-        let a = A("Hello".into()).with_deps(&deps);
+        let a = deps.create_for(A("Hello".into()));
 
         assert_eq!("Hi!", a.obj.0);
     }

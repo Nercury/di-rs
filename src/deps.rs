@@ -28,7 +28,7 @@ impl Deps {
     /// Create dependencies for specified `obj` and return a wrapper `Scope` object.
     ///
     /// The wrapper `Scope` keeps ownership of all children together with parent object.
-    pub fn create_deps<P: Any>(&self, mut obj: P) -> Scope<P> {
+    pub fn create_for<P: Any>(&self, mut obj: P) -> Scope<P> {
         match self.type_child_constructors.get(&TypeId::of::<P>()) {
             // if there are type child constructors
             Some(list) => {
@@ -82,7 +82,7 @@ fn into_constructor_with_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any
 {
     Box::new(move |deps: &Deps, parent: &mut Any| -> Option<Box<Any>> {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
-        let child = deps.create_deps(constructor(deps, Parent::<P> { obj: concrete_parent }));
+        let child = deps.create_for(constructor(deps, Parent::<P> { obj: concrete_parent }));
         Some(Box::new(child))
     })
 }

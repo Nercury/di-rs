@@ -1,6 +1,6 @@
 extern crate di;
 
-use di::{ Deps, Parent, WithDeps };
+use di::{ Deps, Parent };
 use std::thread;
 use std::sync::Arc;
 
@@ -58,14 +58,14 @@ fn main() {
     let a = thread::spawn({
         let a_deps = dep_refs.clone();
         move || {
-            Alpha::new().with_deps(&*a_deps);
+            a_deps.create_for(Alpha::new());
         }
     });
 
     let b = thread::spawn({
         let b_deps = dep_refs.clone();
         move || {
-            Alpha::new().with_deps(&*b_deps);
+            b_deps.create_for(Alpha::new());
         }
     });
 
