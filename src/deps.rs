@@ -16,12 +16,19 @@ pub struct Deps {
             Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync
         >>
     >,
+    type_scope_created: HashMap<
+        TypeId,
+        Vec<Box<
+            Fn(&Deps, &mut Any) + Send + Sync
+        >>
+    >,
 }
 
 impl Deps {
     pub fn new() -> Deps {
         Deps {
-            type_child_constructors: HashMap::new()
+            type_child_constructors: HashMap::new(),
+            type_scope_created: HashMap::new(),
         }
     }
 
@@ -37,6 +44,12 @@ impl Deps {
                 let deps: Vec<_> = list.iter()
                     .filter_map(|any_constructor| any_constructor(&self, &mut obj))
                     .collect();
+
+                if let Some(actions) = self.type_scope_created.get(&TypeId::of::<P>()) {
+                    for action in actions {
+                        action(&self, &mut obj);
+                    }
+                }
 
                 Scope { obj: obj, childs: deps }
             },
@@ -67,6 +80,21 @@ impl Deps {
         self
     }
 
+    pub fn on_create<P, F>(&mut self, action: F)
+        where
+            P: 'static + Any,
+            F: for<'r> Fn(&Deps, Parent<P>) + 'static + Send + Sync
+    {
+        match self.type_scope_created.entry(TypeId::of::<P>()) {
+            Entry::Occupied(mut list) => {
+                list.get_mut().push(into_action_with_deps(action));
+            },
+            Entry::Vacant(e) => {
+                e.insert(vec![into_action_with_deps(action)]);
+            },
+        };
+    }
+
     /// Single dependency on parent.
     pub fn on<P, C, F>(&mut self, constructor: F)
         where
@@ -75,6 +103,15 @@ impl Deps {
     {
         self.register_child_constructor::<P>(into_constructor_with_deps(constructor));
     }
+}
+
+fn into_action_with_deps<P, F>(action: F) -> Box<Fn(&Deps, &mut Any) + Send + Sync>
+    where F: for<'r> Fn(&Deps, Parent<P>) + 'static + Send + Sync, P: 'static + Any
+{
+    Box::new(move |deps: &Deps, parent: &mut Any| {
+        let concrete_parent = parent.downcast_mut::<P>().unwrap();
+        action(deps, Parent::<P> { obj: concrete_parent })
+    })
 }
 
 fn into_constructor_with_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Option<Box<Any>> + Send + Sync>
