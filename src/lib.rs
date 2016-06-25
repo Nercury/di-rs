@@ -19,6 +19,7 @@ use std::slice;
 use std::convert;
 use std::result;
 use std::error;
+use std::vec;
 pub use deps::{ Deps, Features, Scope };
 
 pub struct Collection<T> {
@@ -67,6 +68,15 @@ impl<'a, T> IntoIterator for &'a Collection<T> {
 
     fn into_iter(self) -> CollectionIter<'a, T> {
         CollectionIter { inner: self.items.iter() }
+    }
+}
+
+impl<T> IntoIterator for Collection<T> {
+    type IntoIter = vec::IntoIter<T>;
+    type Item = T;
+
+    fn into_iter(self) -> vec::IntoIter<T> {
+        self.items.into_iter()
     }
 }
 
