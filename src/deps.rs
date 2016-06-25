@@ -21,7 +21,7 @@ pub struct Deps {
     type_scope_created: HashMap<
         TypeId,
         Vec<Box<
-            Fn(&Deps, &mut Any) + Send + Sync
+            Fn(&Deps, &mut Any) -> Result<(), Box<error::Error>> + Send + Sync
         >>
     >,
 }
@@ -55,7 +55,7 @@ impl Deps {
 
                 if let Some(actions) = self.type_scope_created.get(&TypeId::of::<P>()) {
                     for action in actions {
-                        action(&self, &mut obj);
+                        try!(action(&self, &mut obj));
                     }
                 }
 
@@ -96,7 +96,7 @@ impl Deps {
     pub fn on_create<P, F>(&mut self, action: F)
         where
             P: 'static + Any,
-            F: for<'r> Fn(&Deps, &mut P) + 'static + Send + Sync
+            F: for<'r> Fn(&Deps, &mut P) -> Result<(), Box<error::Error>> + 'static + Send + Sync
     {
         match self.type_scope_created.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
@@ -132,10 +132,10 @@ impl Deps {
     }
 }
 
-fn into_action_with_deps<P, F>(action: F) -> Box<Fn(&Deps, &mut Any) + Send + Sync>
-    where F: for<'r> Fn(&Deps, &mut P) + 'static + Send + Sync, P: 'static + Any
+fn into_action_with_deps<P, F>(action: F) -> Box<Fn(&Deps, &mut Any) -> Result<(), Box<error::Error>> + Send + Sync>
+    where F: for<'r> Fn(&Deps, &mut P) -> Result<(), Box<error::Error>> + 'static + Send + Sync, P: 'static + Any
 {
-    Box::new(move |deps: &Deps, parent: &mut Any| {
+    Box::new(move |deps: &Deps, parent: &mut Any| -> Result<(), Box<error::Error>> {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
         action(deps, concrete_parent)
     })
