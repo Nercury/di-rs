@@ -50,24 +50,21 @@ impl<T> convert::AsRef<[T]> for Collection<T> {
     }
 }
 
-pub struct CollectionIter<'a, T: 'a> {
-    inner: slice::Iter<'a, T>,
-}
-
-impl<'a, T: 'a> Iterator for CollectionIter<'a, T> {
+impl<'a, T> IntoIterator for &'a Collection<T> {
+    type IntoIter = slice::Iter<'a, T>;
     type Item = &'a T;
 
-    fn next(&mut self) -> Option<&'a T> {
-        self.inner.next()
+    fn into_iter(self) -> slice::Iter<'a, T> {
+        self.items.iter()
     }
 }
 
-impl<'a, T> IntoIterator for &'a Collection<T> {
-    type IntoIter = CollectionIter<'a, T>;
-    type Item = &'a T;
+impl<'a, T> IntoIterator for &'a mut Collection<T> {
+    type IntoIter = slice::IterMut<'a, T>;
+    type Item = &'a mut T;
 
-    fn into_iter(self) -> CollectionIter<'a, T> {
-        CollectionIter { inner: self.items.iter() }
+    fn into_iter(self) -> slice::IterMut<'a, T> {
+        self.items.iter_mut()
     }
 }
 
