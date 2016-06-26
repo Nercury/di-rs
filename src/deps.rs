@@ -1,9 +1,7 @@
 use std::any::{ Any, TypeId };
-use std::ops::{ Deref, DerefMut };
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use Result;
-use Collection;
+use {Result, Collection, Scope};
 
 pub struct Deps {
     /// List of functions that constructs all childs for a type
@@ -55,10 +53,10 @@ impl Deps {
                     }
                 }
 
-                Ok(Scope { obj: obj, childs: deps })
+                Ok(Scope::new(obj, deps))
             },
             // if there are no type childs, wrap the type in scope anyways with empty child list.
-            None => Ok(Scope { obj: obj, childs: vec![] }),
+            None => Ok(Scope::new(obj, vec![])),
         }
     }
 
@@ -151,28 +149,74 @@ fn into_constructor_without_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps,
     })
 }
 
-#[derive(Debug)]
-pub struct Scope<T> {
-    pub obj: T,
-    childs: Vec<Box<Any>>,
-}
+#[cfg(test)]
+mod test {
+    use Deps;
+    use std::sync::{ Arc, Mutex };
 
-impl<T> Scope<T> {
-    pub fn explode(self) -> T {
-        self.obj
+    #[derive(Clone)]
+    struct A(String);
+
+    #[derive(Clone)]
+    struct B(String);
+
+    #[derive(Clone)]
+    struct C(String);
+
+    #[test]
+    fn creates_dependency() {
+        let mut deps = Deps::new();
+
+        // here we want to know what is the state of dependency in closure, hence
+        // shared mutable reference to it
+        let created_b_ref = Arc::new(Mutex::new(None));
+
+        deps.attach({
+            let created_b_ref = created_b_ref.clone();
+            move |_: &Deps, a: &mut A| {
+                let b = B([&a.0[..], "+B"].concat());
+                *created_b_ref.lock().unwrap() = Some(b.clone());
+                Ok(b)
+            }
+        });
+
+        deps.create(A("Hello".into())).unwrap();
+
+        assert_eq!("Hello+B", (*created_b_ref.lock().unwrap()).clone().unwrap().0);
     }
-}
 
-impl<T> Deref for Scope<T> {
-    type Target = T;
+    #[test]
+    fn creates_dependency_of_dependency() {
+        let mut deps = Deps::new();
 
-    fn deref(&self) -> &T {
-        &self.obj
+        // here we want to know what is the state of dependency in closure, hence
+        // shared mutable reference to it
+        let created_c_ref = Arc::new(Mutex::new(None));
+
+        deps.attach(|_: &Deps, a: &mut A| Ok(B([&a.0[..], "+B"].concat())));
+
+        deps.attach({
+            let created_c_ref = created_c_ref.clone();
+            move |_: &Deps, b: &mut B| {
+                let c = C([&b.0[..], "+C"].concat());
+                *created_c_ref.lock().unwrap() = Some(c.clone());
+                Ok(c)
+            }
+        });
+
+        deps.create(A("Hello".into())).unwrap();
+
+        assert_eq!("Hello+B+C", (*created_c_ref.lock().unwrap()).clone().unwrap().0);
     }
-}
 
-impl<T> DerefMut for Scope<T> {
-    fn deref_mut(&mut self) -> &mut T {
-        &mut self.obj
+    #[test]
+    fn creates_mutable_dependency() {
+        let mut deps = Deps::new();
+
+        deps.attach(|_: &Deps, a: &mut A| {*a = A("Hi!".into()); Ok(())});
+
+        let a = deps.create(A("Hello".into())).unwrap();
+
+        assert_eq!("Hi!", a.obj.0);
     }
 }
