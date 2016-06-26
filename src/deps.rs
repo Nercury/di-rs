@@ -65,27 +65,11 @@ impl Deps {
         self.create(Collection::new()).map(|v| v.explode())
     }
 
-    /// Register child constructor that will be invoked when the parent `P` type is
-    /// created.
-    pub fn register_child_constructor<P: Any>(
-        &mut self,
-        any_constructor: Box<Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>> + Send + Sync>
-    ) {
-        match self.type_child_constructors.entry(TypeId::of::<P>()) {
-            Entry::Occupied(mut list) => {
-                list.get_mut().push(any_constructor);
-            }
-            Entry::Vacant(e) => {
-                e.insert(vec![any_constructor]);
-            }
-        };
-    }
-
-    pub fn on_created<P, F>(&mut self, action: F)
-        where P: 'static + Any,
-              F: for<'r> Fn(&Deps, &mut P) -> Result<()> + 'static + Send + Sync
+    pub fn when_ready<T, F>(&mut self, action: F)
+        where T: 'static + Any,
+              F: for<'r> Fn(&Deps, &mut T) -> Result<()> + 'static + Send + Sync
     {
-        match self.type_scope_created.entry(TypeId::of::<P>()) {
+        match self.type_scope_created.entry(TypeId::of::<T>()) {
             Entry::Occupied(mut list) => {
                 list.get_mut().push(into_action_with_deps(action));
             }
@@ -95,10 +79,10 @@ impl Deps {
         };
     }
 
-    /// Single dependency on parent.
+    /// Single dependency on a parent.
     pub fn attach<P, C, F>(&mut self, constructor: F)
-        where P: 'static + Any,
-              C: 'static + Any,
+        where P: 'static + Any, // Parent
+              C: 'static + Any, // Child
               F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync
     {
         self.register_child_constructor::<P>(into_constructor_with_child_deps(constructor));
@@ -113,6 +97,22 @@ impl Deps {
                 parent.push(constructor(deps))
             })
         );
+    }
+
+    /// Register child constructor that will be invoked when the parent `P` type is
+    /// created.
+    fn register_child_constructor<P: Any>(
+        &mut self,
+        any_constructor: Box<Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>> + Send + Sync>
+    ) {
+        match self.type_child_constructors.entry(TypeId::of::<P>()) {
+            Entry::Occupied(mut list) => {
+                list.get_mut().push(any_constructor);
+            }
+            Entry::Vacant(e) => {
+                e.insert(vec![any_constructor]);
+            }
+        };
     }
 }
 
