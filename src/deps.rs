@@ -11,14 +11,14 @@ struct Constructed {
 pub struct Deps {
     /// List of functions that constructs all childs for a type
     /// and returns value wrapped in Any that must live as long as the parent type.
-    type_child_constructors: HashMap<TypeId, Vec<Box<Fn(&Deps, Box<Any>) -> Result<Constructed> + Send + Sync>>>,
+    isolated_constructors: HashMap<TypeId, Vec<Box<Fn(&Deps, Box<Any>) -> Result<Constructed> + Send + Sync>>>,
     type_scope_created: HashMap<TypeId, Vec<Box<Fn(&Deps, Box<Any>) -> Result<Box<Any>> + Send + Sync>>>,
 }
 
 impl Deps {
     pub fn new() -> Deps {
         Deps {
-            type_child_constructors: HashMap::new(),
+            isolated_constructors: HashMap::new(),
             type_scope_created: HashMap::new(),
         }
     }
@@ -27,7 +27,7 @@ impl Deps {
     ///
     /// The wrapper `Scope` keeps ownership of all children together with parent object.
     pub fn create<P: Any>(&self, obj: P) -> Result<Scope<P>> {
-        match self.type_child_constructors.get(&TypeId::of::<P>()) {
+        match self.isolated_constructors.get(&TypeId::of::<P>()) {
             // if there are type child constructors
             Some(list) => {
                 let mut parent = Box::new(obj) as Box<Any>;
@@ -85,15 +85,15 @@ impl Deps {
               C: 'static + Any, // Child
               F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync
     {
-        self.register_child_constructor::<P>(into_constructor_with_child_deps(constructor));
+        self.register_isolated_constructor::<P>(into_isolated_constructor_with_child_deps(constructor));
     }
 
     pub fn collectable<C, F>(&mut self, constructor: F)
         where C: 'static + Any,
               F: for<'r> Fn(&Deps) -> C + 'static + Send + Sync
     {
-        self.register_child_constructor::<Collection<C>>(
-            into_constructor_without_child_deps(move |deps: &Deps, parent: &mut Collection<C>| {
+        self.register_isolated_constructor::<Collection<C>>(
+            into_isolated_constructor_without_child_deps(move |deps: &Deps, parent: &mut Collection<C>| {
                 parent.push(constructor(deps))
             })
         );
@@ -101,11 +101,11 @@ impl Deps {
 
     /// Register child constructor that will be invoked when the parent `P` type is
     /// created.
-    fn register_child_constructor<P: Any>(
+    fn register_isolated_constructor<P: Any>(
         &mut self,
         any_constructor: Box<Fn(&Deps, Box<Any>) -> Result<Constructed> + Send + Sync>
     ) {
-        match self.type_child_constructors.entry(TypeId::of::<P>()) {
+        match self.isolated_constructors.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
                 list.get_mut().push(any_constructor);
             }
@@ -130,7 +130,7 @@ fn into_action_with_deps<P, F>(action: F)
     })
 }
 
-fn into_constructor_with_child_deps<P, C, F>
+fn into_isolated_constructor_with_child_deps<P, C, F>
     (constructor: F)
      -> Box<Fn(&Deps, Box<Any>) -> Result<Constructed> + Send + Sync>
     where F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync,
@@ -149,7 +149,7 @@ fn into_constructor_with_child_deps<P, C, F>
     })
 }
 
-fn into_constructor_without_child_deps<P, C, F>
+fn into_isolated_constructor_without_child_deps<P, C, F>
     (constructor: F)
      -> Box<Fn(&Deps, Box<Any>) -> Result<Constructed> + Send + Sync>
     where F: for<'r> Fn(&Deps, &mut P) -> C + 'static + Send + Sync,
