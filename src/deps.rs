@@ -1,4 +1,4 @@
-use std::any::{ Any, TypeId };
+use std::any::{Any, TypeId};
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use {Result, Collection, Scope};
@@ -54,7 +54,7 @@ impl Deps {
                 }
 
                 Ok(Scope::new(obj, deps))
-            },
+            }
             // if there are no type childs, wrap the type in scope anyways with empty child list.
             None => Ok(Scope::new(obj, vec![])),
         }
@@ -74,43 +74,39 @@ impl Deps {
         match self.type_child_constructors.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
                 list.get_mut().push(any_constructor);
-            },
+            }
             Entry::Vacant(e) => {
                 e.insert(vec![any_constructor]);
-            },
+            }
         };
     }
 
     pub fn on_created<P, F>(&mut self, action: F)
-        where
-            P: 'static + Any,
-            F: for<'r> Fn(&Deps, &mut P) -> Result<()> + 'static + Send + Sync
+        where P: 'static + Any,
+              F: for<'r> Fn(&Deps, &mut P) -> Result<()> + 'static + Send + Sync
     {
         match self.type_scope_created.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
                 list.get_mut().push(into_action_with_deps(action));
-            },
+            }
             Entry::Vacant(e) => {
                 e.insert(vec![into_action_with_deps(action)]);
-            },
+            }
         };
     }
 
     /// Single dependency on parent.
     pub fn attach<P, C, F>(&mut self, constructor: F)
-        where
-            P: 'static + Any, C: 'static + Any,
-            F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync
+        where P: 'static + Any,
+              C: 'static + Any,
+              F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync
     {
-        self.register_child_constructor::<P>(
-            into_constructor_with_child_deps(constructor)
-        );
+        self.register_child_constructor::<P>(into_constructor_with_child_deps(constructor));
     }
 
     pub fn collectable<C, F>(&mut self, constructor: F)
-        where
-            C: 'static + Any,
-            F: for<'r> Fn(&Deps) -> C + 'static + Send + Sync
+        where C: 'static + Any,
+              F: for<'r> Fn(&Deps) -> C + 'static + Send + Sync
     {
         self.register_child_constructor::<Collection<C>>(
             into_constructor_without_child_deps(move |deps: &Deps, parent: &mut Collection<C>| {
@@ -121,7 +117,8 @@ impl Deps {
 }
 
 fn into_action_with_deps<P, F>(action: F) -> Box<Fn(&Deps, &mut Any) -> Result<()> + Send + Sync>
-    where F: for<'r> Fn(&Deps, &mut P) -> Result<()> + 'static + Send + Sync, P: 'static + Any
+    where F: for<'r> Fn(&Deps, &mut P) -> Result<()> + 'static + Send + Sync,
+          P: 'static + Any
 {
     Box::new(move |deps: &Deps, parent: &mut Any| -> Result<()> {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
@@ -129,8 +126,12 @@ fn into_action_with_deps<P, F>(action: F) -> Box<Fn(&Deps, &mut Any) -> Result<(
     })
 }
 
-fn into_constructor_with_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>> + Send + Sync>
-    where F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync, P: 'static + Any, C: 'static + Any
+fn into_constructor_with_child_deps<P, C, F>
+    (constructor: F)
+     -> Box<Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>> + Send + Sync>
+    where F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync,
+          P: 'static + Any,
+          C: 'static + Any
 {
     Box::new(move |deps: &Deps, parent: &mut Any| -> Result<Option<Box<Any>>> {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
@@ -139,8 +140,11 @@ fn into_constructor_with_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &m
     })
 }
 
-fn into_constructor_without_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>> + Send + Sync>
-    where F: for<'r> Fn(&Deps, &mut P) -> C + 'static + Send + Sync, P: 'static + Any
+fn into_constructor_without_child_deps<P, C, F>
+    (constructor: F)
+     -> Box<Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>> + Send + Sync>
+    where F: for<'r> Fn(&Deps, &mut P) -> C + 'static + Send + Sync,
+          P: 'static + Any
 {
     Box::new(move |deps: &Deps, parent: &mut Any| -> Result<Option<Box<Any>>> {
         let concrete_parent = parent.downcast_mut::<P>().unwrap();
@@ -152,7 +156,7 @@ fn into_constructor_without_child_deps<P, C, F>(constructor: F) -> Box<Fn(&Deps,
 #[cfg(test)]
 mod test {
     use Deps;
-    use std::sync::{ Arc, Mutex };
+    use std::sync::{Arc, Mutex};
 
     #[derive(Clone)]
     struct A(String);
@@ -182,7 +186,8 @@ mod test {
 
         deps.create(A("Hello".into())).unwrap();
 
-        assert_eq!("Hello+B", (*created_b_ref.lock().unwrap()).clone().unwrap().0);
+        assert_eq!("Hello+B",
+                   (*created_b_ref.lock().unwrap()).clone().unwrap().0);
     }
 
     #[test]
@@ -206,14 +211,18 @@ mod test {
 
         deps.create(A("Hello".into())).unwrap();
 
-        assert_eq!("Hello+B+C", (*created_c_ref.lock().unwrap()).clone().unwrap().0);
+        assert_eq!("Hello+B+C",
+                   (*created_c_ref.lock().unwrap()).clone().unwrap().0);
     }
 
     #[test]
     fn creates_mutable_dependency() {
         let mut deps = Deps::new();
 
-        deps.attach(|_: &Deps, a: &mut A| {*a = A("Hi!".into()); Ok(())});
+        deps.attach(|_: &Deps, a: &mut A| {
+            *a = A("Hi!".into());
+            Ok(())
+        });
 
         let a = deps.create(A("Hello".into())).unwrap();
 

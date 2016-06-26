@@ -7,7 +7,9 @@ pub struct Collection<T> {
     items: Vec<T>,
 }
 
-impl<T> fmt::Debug for Collection<T> where T: fmt::Debug {
+impl<T> fmt::Debug for Collection<T>
+    where T: fmt::Debug
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_list().entries(self.items.iter()).finish()
     }
@@ -15,9 +17,7 @@ impl<T> fmt::Debug for Collection<T> where T: fmt::Debug {
 
 impl<T> Collection<T> {
     pub fn new() -> Collection<T> {
-        Collection {
-            items: Vec::new()
-        }
+        Collection { items: Vec::new() }
     }
 
     pub fn push(&mut self, item: T) {
