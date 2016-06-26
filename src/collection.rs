@@ -23,6 +23,10 @@ impl<T> Collection<T> {
     pub fn push(&mut self, item: T) {
         self.items.push(item)
     }
+
+    pub fn iter<'a>(&'a self) -> slice::Iter<'a, T> {
+        self.into_iter()
+    }
 }
 
 impl<T> convert::AsRef<[T]> for Collection<T> {
@@ -37,15 +41,6 @@ impl<'a, T> IntoIterator for &'a Collection<T> {
 
     fn into_iter(self) -> slice::Iter<'a, T> {
         self.items.iter()
-    }
-}
-
-impl<'a, T> IntoIterator for &'a mut Collection<T> {
-    type IntoIter = slice::IterMut<'a, T>;
-    type Item = &'a mut T;
-
-    fn into_iter(self) -> slice::IterMut<'a, T> {
-        self.items.iter_mut()
     }
 }
 
