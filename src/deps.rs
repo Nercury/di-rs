@@ -3,21 +3,16 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use {Result, Collection, Scope};
 
+struct Constructed {
+    parent: Box<Any>,
+    child: Option<Box<Any>>,
+}
+
 pub struct Deps {
     /// List of functions that constructs all childs for a type
     /// and returns value wrapped in Any that must live as long as the parent type.
-    type_child_constructors: HashMap<
-        TypeId,
-        Vec<Box<
-            Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>> + Send + Sync
-        >>
-    >,
-    type_scope_created: HashMap<
-        TypeId,
-        Vec<Box<
-            Fn(&Deps, &mut Any) -> Result<()> + Send + Sync
-        >>
-    >,
+    type_child_constructors: HashMap<TypeId, Vec<Box<Fn(&Deps, Box<Any>) -> Result<Constructed> + Send + Sync>>>,
+    type_scope_created: HashMap<TypeId, Vec<Box<Fn(&Deps, Box<Any>) -> Result<Box<Any>> + Send + Sync>>>,
 }
 
 impl Deps {
@@ -31,29 +26,34 @@ impl Deps {
     /// Create dependencies for specified `obj` and return a wrapper `Scope` object.
     ///
     /// The wrapper `Scope` keeps ownership of all children together with parent object.
-    pub fn create<P: Any>(&self, mut obj: P) -> Result<Scope<P>> {
+    pub fn create<P: Any>(&self, obj: P) -> Result<Scope<P>> {
         match self.type_child_constructors.get(&TypeId::of::<P>()) {
             // if there are type child constructors
             Some(list) => {
+                let mut parent = Box::new(obj) as Box<Any>;
+
                 // run each child constructor and receive list of objects that will be kept inside
                 // the parent scope.
                 let mut deps = Vec::new();
 
                 for any_constructor in list {
-                    match any_constructor(&self, &mut obj) {
-                        Ok(None) => continue,
-                        Ok(Some(dep)) => deps.push(dep),
+                    parent = match any_constructor(&self, parent) {
+                        Ok(Constructed { parent, child: None }) => parent,
+                        Ok(Constructed { parent, child: Some(child) }) => {
+                            deps.push(child);
+                            parent
+                        }
                         Err(any_err) => return Err(any_err),
                     };
                 }
 
                 if let Some(actions) = self.type_scope_created.get(&TypeId::of::<P>()) {
                     for action in actions {
-                        try!(action(&self, &mut obj));
+                        parent = try!(action(&self, parent));
                     }
                 }
 
-                Ok(Scope::new(obj, deps))
+                Ok(Scope::new(*parent.downcast().unwrap(), deps))
             }
             // if there are no type childs, wrap the type in scope anyways with empty child list.
             None => Ok(Scope::new(obj, vec![])),
@@ -103,7 +103,7 @@ impl Deps {
     /// created.
     fn register_child_constructor<P: Any>(
         &mut self,
-        any_constructor: Box<Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>> + Send + Sync>
+        any_constructor: Box<Fn(&Deps, Box<Any>) -> Result<Constructed> + Send + Sync>
     ) {
         match self.type_child_constructors.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
@@ -116,40 +116,54 @@ impl Deps {
     }
 }
 
-fn into_action_with_deps<P, F>(action: F) -> Box<Fn(&Deps, &mut Any) -> Result<()> + Send + Sync>
+fn into_action_with_deps<P, F>(action: F)
+                               -> Box<Fn(&Deps, Box<Any>) -> Result<Box<Any>> + Send + Sync>
     where F: for<'r> Fn(&Deps, &mut P) -> Result<()> + 'static + Send + Sync,
           P: 'static + Any
 {
-    Box::new(move |deps: &Deps, parent: &mut Any| -> Result<()> {
-        let concrete_parent = parent.downcast_mut::<P>().unwrap();
-        action(deps, concrete_parent)
+    Box::new(move |deps: &Deps, mut parent: Box<Any>| -> Result<Box<Any>> {
+        {
+            let mut concrete_parent = parent.downcast_mut::<P>().unwrap();
+            try!(action(deps, &mut concrete_parent));
+        }
+        Ok(parent)
     })
 }
 
 fn into_constructor_with_child_deps<P, C, F>
     (constructor: F)
-     -> Box<Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>> + Send + Sync>
+     -> Box<Fn(&Deps, Box<Any>) -> Result<Constructed> + Send + Sync>
     where F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync,
           P: 'static + Any,
           C: 'static + Any
 {
-    Box::new(move |deps: &Deps, parent: &mut Any| -> Result<Option<Box<Any>>> {
-        let concrete_parent = parent.downcast_mut::<P>().unwrap();
-        let child = try!(deps.create(try!(constructor(deps, concrete_parent))));
-        Ok(Some(Box::new(child)))
+    Box::new(move |deps: &Deps, mut parent: Box<Any>| -> Result<Constructed> {
+        let child = {
+            let concrete_parent = parent.downcast_mut::<P>().unwrap();
+            try!(deps.create(try!(constructor(deps, concrete_parent))))
+        };
+        Ok(Constructed {
+            parent: parent,
+            child: Some(Box::new(child)),
+        })
     })
 }
 
 fn into_constructor_without_child_deps<P, C, F>
     (constructor: F)
-     -> Box<Fn(&Deps, &mut Any) -> Result<Option<Box<Any>>> + Send + Sync>
+     -> Box<Fn(&Deps, Box<Any>) -> Result<Constructed> + Send + Sync>
     where F: for<'r> Fn(&Deps, &mut P) -> C + 'static + Send + Sync,
           P: 'static + Any
 {
-    Box::new(move |deps: &Deps, parent: &mut Any| -> Result<Option<Box<Any>>> {
-        let concrete_parent = parent.downcast_mut::<P>().unwrap();
-        constructor(deps, concrete_parent);
-        Ok(None)
+    Box::new(move |deps: &Deps, mut parent: Box<Any>| -> Result<Constructed> {
+        {
+            let concrete_parent = parent.downcast_mut::<P>().unwrap();
+            constructor(deps, concrete_parent);
+        }
+        Ok(Constructed {
+            parent: parent,
+            child: None,
+        })
     })
 }
 
