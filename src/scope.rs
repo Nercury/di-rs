@@ -1,35 +1,33 @@
 use std::any::Any;
-use std::ops::{Deref, DerefMut};
+use std::sync::LockResult;
+use constructed::{Instance, AnyInstance, MaybeMutexGuard};
 
 #[derive(Debug)]
 pub struct Scope<T> {
-    pub obj: T,
+    obj: Instance<T>,
     childs: Vec<Box<Any>>,
 }
 
-impl<T> Scope<T> {
-    pub fn new(obj: T, childs: Vec<Box<Any>>) -> Scope<T> {
+impl<T: Any> Scope<T> {
+    pub fn from_any_instance(obj: AnyInstance, childs: Vec<Box<Any>>) -> Scope<T> {
         Scope {
-            obj: obj,
+            obj: obj.downcast(),
             childs: childs,
         }
     }
 
     pub fn explode(self) -> T {
-        self.obj
+        match self.obj {
+            Instance::Isolated(obj) => obj,
+            Instance::Shared(_arc) => unreachable!("can't explode shared"),
+        }
     }
-}
 
-impl<T> Deref for Scope<T> {
-    type Target = T;
+    pub fn lock<'a>(&'a mut self) -> LockResult<MaybeMutexGuard<'a, T>> {
+        self.obj.lock()
+    }
 
-    fn deref(&self) -> &T {
+    pub fn get_instance(&self) -> &Instance<T> {
         &self.obj
-    }
-}
-
-impl<T> DerefMut for Scope<T> {
-    fn deref_mut(&mut self) -> &mut T {
-        &mut self.obj
     }
 }

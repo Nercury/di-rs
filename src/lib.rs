@@ -4,16 +4,21 @@
 //! <style>.sidebar { margin-top: 53px }</style>
 //!
 
-//!
-#![feature(specialization)]
+#[macro_use]
+extern crate log;
+extern crate env_logger;
+extern crate typedef;
 
 mod deps;
 mod collection;
 mod scope;
+mod inceptor;
+mod constructed;
 
 use std::result;
 use std::error;
 
+pub use constructed::MaybeMutexGuard;
 pub use collection::Collection;
 pub use scope::Scope;
 pub use deps::Deps;
