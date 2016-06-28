@@ -5,7 +5,6 @@ use std::collections::hash_map::Entry;
 use constructed::{Constructed, ConstructedShared, AnyInstance};
 use inceptor::{Inceptor, Destructor};
 use {Result, Collection, Scope};
-use typedef::TypeDef;
 
 pub struct Deps {
     empty_type: TypeId,
@@ -23,8 +22,6 @@ fn to_shared<T: Any>(not_shared: Box<Any>) -> Box<Any> {
     let parent: T = *not_shared.downcast::<T>()
         .expect("expected downcast to P when \
                  changing to shared P");
-    debug!("converting type {:?} to shared type",
-           TypeDef::name_of::<T>());
     Box::new(Arc::new(Mutex::new(parent)))
 }
 
@@ -44,9 +41,8 @@ impl Deps {
     /// The wrapper `Scope` keeps ownership of all children together with parent object.
     pub fn create<P: Any>(&self, obj: P) -> Result<Scope<P>> {
         let type_id = TypeId::of::<P>();
-        let type_name = TypeDef::name_of::<P>();
 
-        trace!("create {:?}, id {:?}", type_name, type_id);
+        trace!("create id {:?}", type_id);
 
         let (parent, deps) =
             try!(self.create_deps_for_any_parent(type_id, Box::new(obj), to_shared::<P>));

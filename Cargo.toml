@@ -27,4 +27,3 @@ doctest = true
 [dependencies]
 env_logger = "0.3"
 log = "0.3"
-typedef = "0.2"
