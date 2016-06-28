@@ -7,14 +7,19 @@ use inceptor::{Inceptor, Destructor};
 use {Result, Collection, Scope};
 
 pub struct Deps {
+    /// Ignored type ().
     empty_type: TypeId,
     /// List of functions that constructs all childs for a type
     /// and returns value wrapped in Any that must live as long as the parent type.
     isolated_constructors: HashMap<TypeId,
                                        Vec<Box<Fn(&Deps, &mut Box<Any>) -> Result<Constructed> + Send + Sync>>>,
+    /// List of functions that constructs all childs for a type wrapped in Box<Arc<Mutex<T>>> as Box<Any>
+    /// and returns value wrapped in Any that must live as long as the parent type.
     shared_constructors: HashMap<TypeId, Vec<Box<Fn(&Deps, &mut Box<Any>) -> Result<ConstructedShared> + Send + Sync>>>,
+    /// List of callbacks to invoke after a value and all its dependencies were created.
     type_scope_created: HashMap<TypeId,
                                 Vec<Box<Fn(&Deps, &mut AnyInstance) -> Result<()> + Send + Sync>>>,
+    /// List of inceptors that manage shared dependency bridge creation for type pairs.
     inceptors: HashMap<(TypeId, TypeId), Box<Any>>,
 }
 
@@ -47,79 +52,6 @@ impl Deps {
         let (parent, deps) =
             try!(self.create_deps_for_any_parent(type_id, Box::new(obj), to_shared::<P>));
         Ok(Scope::from_any_instance(parent, deps))
-    }
-
-    fn create_deps_for_any_parent<F>(&self,
-                                     type_id: TypeId,
-                                     mut parent_not_shared: Box<Any>,
-                                     to_shared: F)
-                                     -> Result<(AnyInstance, Vec<Box<Any>>)>
-        where F: Fn(Box<Any>) -> Box<Any>
-    {
-
-        trace!("create shared type {:?}", type_id);
-
-        let mut deps = Vec::new();
-
-        // First, construct any instances that do not need parent wrapped in mutex
-
-        match self.isolated_constructors.get(&type_id) {
-            Some(isolated_list) => {
-                trace!("go over isolated constructors");
-                for any_constructor in isolated_list {
-                    trace!("constructor");
-                    match any_constructor(&self, &mut parent_not_shared) {
-                        Ok(Constructed { children }) => {
-                            trace!("constructed {:?}", children);
-                            deps.extend(children)
-                        }
-                        Err(any_err) => {
-                            trace!("construction error {:?}", any_err);
-                            return Err(any_err);
-                        }
-                    };
-                }
-            }
-            None => (),
-        }
-
-        // Then, check if there are shared constructors, and if so, wrap value in mutex
-        // and return it in AnyInstance::Shared, otherwise, return it in AnyInstance::Isolated.
-
-        let mut parent_result = match self.shared_constructors.get(&type_id) {
-            Some(shared_list) => {
-                let mut parent_shared = to_shared(parent_not_shared);
-
-                trace!("go over shared constructors");
-                for any_constructor in shared_list {
-                    trace!("constructor");
-                    match any_constructor(&self, &mut parent_shared) {
-                        Ok(ConstructedShared { children }) => {
-                            trace!("constructed {:?}", children);
-                            deps.extend(children)
-                        }
-                        Err(any_err) => {
-                            trace!("construction error {:?}", any_err);
-                            return Err(any_err);
-                        }
-                    };
-                }
-
-                AnyInstance::Shared(parent_shared)
-            }
-            None => AnyInstance::Isolated(parent_not_shared),
-        };
-
-        // Execute post create actions for the value
-
-        trace!("go over actions");
-        if let Some(actions) = self.type_scope_created.get(&type_id) {
-            for action in actions {
-                try!(action(&self, &mut parent_result));
-            }
-        }
-
-        Ok((parent_result, deps))
     }
 
     /// Collect all the items registered as `collectable` into a `Collection` of that type.
@@ -225,6 +157,79 @@ impl Deps {
                 parent.push(constructor(deps))
             })
         );
+    }
+
+    fn create_deps_for_any_parent<F>(&self,
+                                     type_id: TypeId,
+                                     mut parent_not_shared: Box<Any>,
+                                     to_shared: F)
+                                     -> Result<(AnyInstance, Vec<Box<Any>>)>
+        where F: Fn(Box<Any>) -> Box<Any>
+    {
+
+        trace!("create shared type {:?}", type_id);
+
+        let mut deps = Vec::new();
+
+        // First, construct any instances that do not need parent wrapped in mutex
+
+        match self.isolated_constructors.get(&type_id) {
+            Some(isolated_list) => {
+                trace!("go over isolated constructors");
+                for any_constructor in isolated_list {
+                    trace!("constructor");
+                    match any_constructor(&self, &mut parent_not_shared) {
+                        Ok(Constructed { children }) => {
+                            trace!("constructed {:?}", children);
+                            deps.extend(children)
+                        }
+                        Err(any_err) => {
+                            trace!("construction error {:?}", any_err);
+                            return Err(any_err);
+                        }
+                    };
+                }
+            }
+            None => (),
+        }
+
+        // Then, check if there are shared constructors, and if so, wrap value in mutex
+        // and return it in AnyInstance::Shared, otherwise, return it in AnyInstance::Isolated.
+
+        let mut parent_result = match self.shared_constructors.get(&type_id) {
+            Some(shared_list) => {
+                let mut parent_shared = to_shared(parent_not_shared);
+
+                trace!("go over shared constructors");
+                for any_constructor in shared_list {
+                    trace!("constructor");
+                    match any_constructor(&self, &mut parent_shared) {
+                        Ok(ConstructedShared { children }) => {
+                            trace!("constructed {:?}", children);
+                            deps.extend(children)
+                        }
+                        Err(any_err) => {
+                            trace!("construction error {:?}", any_err);
+                            return Err(any_err);
+                        }
+                    };
+                }
+
+                AnyInstance::Shared(parent_shared)
+            }
+            None => AnyInstance::Isolated(parent_not_shared),
+        };
+
+        // Execute post create actions for the value
+
+        trace!("go over actions");
+        if let Some(actions) = self.type_scope_created.get(&type_id) {
+            for action in actions {
+                try!(action(&self, &mut parent_result));
+            }
+        }
+
+        Ok((parent_result, deps))
     }
 
     /// Register child constructor that will be invoked when the parent `P` type is
