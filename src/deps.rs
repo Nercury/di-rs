@@ -188,51 +188,8 @@ impl Deps {
         // Create inceptor clone for P2 instances
         let inceptor_2 = inceptor_1.clone();
 
-        self.register_shared_constructor::<P1>(Box::new(move |deps: &Deps,
-                                                              parent: &mut Box<Any>|
-                                                              -> Result<ConstructedShared> {
-            let parent_for_inceptor = parent.downcast_mut::<Arc<Mutex<P1>>>()
-                .expect("expected P1 downcast")
-                .clone();
-            let (id, instances) = try!(inceptor_1.lock()
-                .expect("failed to lock")
-                .incept_1(parent_for_inceptor));
-
-            let mut children: Vec<Box<Any>> = Vec::with_capacity(instances.len() + 1);
-
-            for instance in instances {
-                let instance_artifacts =
-                    try!(deps.create_deps_for_any_parent(TypeId::of::<C>(), instance, to_shared::<C>));
-                children.push(Box::new(instance_artifacts));
-            }
-
-            children.push(Box::new(Destructor::new(inceptor_1.clone(), 1, id)));
-
-            Ok(ConstructedShared { children: children })
-        }));
-
-        self.register_shared_constructor::<P2>(Box::new(move |deps: &Deps,
-                                                              parent: &mut Box<Any>|
-                                                              -> Result<ConstructedShared> {
-            let parent_for_inceptor = parent.downcast_mut::<Arc<Mutex<P2>>>()
-                .expect("expected P2 downcast")
-                .clone();
-            let (id, instances) = try!(inceptor_2.lock()
-                .expect("failed to lock")
-                .incept_2(parent_for_inceptor));
-
-            let mut children: Vec<Box<Any>> = Vec::with_capacity(instances.len() + 1);
-
-            for instance in instances {
-                let instance_artifacts =
-                    try!(deps.create_deps_for_any_parent(TypeId::of::<C>(), instance, to_shared::<C>));
-                children.push(Box::new(instance_artifacts));
-            }
-
-            children.push(Box::new(Destructor::new(inceptor_2.clone(), 2, id)));
-
-            Ok(ConstructedShared { children: children })
-        }));
+        self.register_shared_constructor::<P1>(into_shared_constructor_1::<P1, P2, C>(inceptor_1));
+        self.register_shared_constructor::<P2>(into_shared_constructor_2::<P1, P2, C>(inceptor_2));
     }
 
     pub fn collectable<C, F>(&mut self, constructor: F)
@@ -305,6 +262,64 @@ fn into_action_with_deps<P, F>(action: F)
             }
         };
         Ok(())
+    })
+}
+
+fn into_shared_constructor_1<P1, P2, C>
+    (inceptor: Arc<Mutex<Inceptor<P1, P2>>>)
+     -> Box<Fn(&Deps, &mut Box<Any>) -> Result<ConstructedShared> + Send + Sync>
+    where P1: 'static + Any + Send + Sync, // Parent 1
+          P2: 'static + Any + Send + Sync, // Parent 2
+          C: 'static + Any // Child
+{
+    Box::new(move |deps: &Deps, parent: &mut Box<Any>| -> Result<ConstructedShared> {
+        let parent_for_inceptor = parent.downcast_mut::<Arc<Mutex<P1>>>()
+            .expect("expected downcast")
+            .clone();
+        let (id, instances) = try!(inceptor.lock()
+            .expect("failed to lock")
+            .incept_1(parent_for_inceptor));
+
+        let mut children: Vec<Box<Any>> = Vec::with_capacity(instances.len() + 1);
+
+        for instance in instances {
+            let instance_artifacts =
+                try!(deps.create_deps_for_any_parent(TypeId::of::<C>(), instance, to_shared::<C>));
+            children.push(Box::new(instance_artifacts));
+        }
+
+        children.push(Box::new(Destructor::new(inceptor.clone(), 1, id)));
+
+        Ok(ConstructedShared { children: children })
+    })
+}
+
+fn into_shared_constructor_2<P1, P2, C>
+    (inceptor: Arc<Mutex<Inceptor<P1, P2>>>)
+     -> Box<Fn(&Deps, &mut Box<Any>) -> Result<ConstructedShared> + Send + Sync>
+    where P1: 'static + Any + Send + Sync, // Parent 1
+          P2: 'static + Any + Send + Sync, // Parent 2
+          C: 'static + Any // Child
+{
+    Box::new(move |deps: &Deps, parent: &mut Box<Any>| -> Result<ConstructedShared> {
+        let parent_for_inceptor = parent.downcast_mut::<Arc<Mutex<P2>>>()
+            .expect("expected downcast")
+            .clone();
+        let (id, instances) = try!(inceptor.lock()
+            .expect("failed to lock")
+            .incept_2(parent_for_inceptor));
+
+        let mut children: Vec<Box<Any>> = Vec::with_capacity(instances.len() + 1);
+
+        for instance in instances {
+            let instance_artifacts =
+                try!(deps.create_deps_for_any_parent(TypeId::of::<C>(), instance, to_shared::<C>));
+            children.push(Box::new(instance_artifacts));
+        }
+
+        children.push(Box::new(Destructor::new(inceptor.clone(), 2, id)));
+
+        Ok(ConstructedShared { children: children })
     })
 }
 
