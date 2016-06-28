@@ -6,7 +6,6 @@ use constructed::{Constructed, ConstructedShared, AnyInstance};
 use inceptor::{Inceptor, Destructor};
 use {Result, Collection, Scope};
 use typedef::TypeDef;
-use std::fmt;
 
 pub struct Deps {
     empty_type: TypeId,
@@ -160,7 +159,7 @@ impl Deps {
     }
 
     /// Single dependency on multiple parents.
-    pub fn bridge<P1, P2, C: fmt::Debug, F>(&mut self, constructor: F)
+    pub fn bridge<P1, P2, C, F>(&mut self, constructor: F)
         where P1: 'static + Any + Send + Sync, // Parent 1
               P2: 'static + Any + Send + Sync, // Parent 2
               C: 'static + Any, // Child
@@ -177,34 +176,9 @@ impl Deps {
             }
             Entry::Vacant(entry) => {
                 let arc = Arc::new(Mutex::new(if TypeId::of::<C>() == self.empty_type {
-                    Inceptor::<P1, P2>::new(move |p1: &mut P1,
-                                                  p2: &mut P2|
-                                                  -> Result<Option<Box<Any>>> {
-                        debug!("create inceptor {}-{}, {:?}-{:?} instance with no return val",
-                               TypeDef::name_of::<P1>(),
-                               TypeDef::name_of::<P2>(),
-                               TypeId::of::<P1>(),
-                               TypeId::of::<P2>());
-                        try!(constructor(p1, p2));
-                        debug!("instance created, return val not used");
-                        Ok(None)
-                    })
+                    Inceptor::new_with_ignored_return_val(constructor)
                 } else {
-                    Inceptor::<P1, P2>::new(move |p1: &mut P1,
-                                                  p2: &mut P2|
-                                                  -> Result<Option<Box<Any>>> {
-                        debug!("create inceptor {}-{}, {:?}-{:?} instance with return val of \
-                                type {}, {:?}",
-                               TypeDef::name_of::<P1>(),
-                               TypeDef::name_of::<P2>(),
-                               TypeId::of::<P1>(),
-                               TypeId::of::<P2>(),
-                               TypeDef::name_of::<C>(),
-                               TypeId::of::<C>());
-                        let val = try!(constructor(p1, p2));
-                        debug!("instance created, using return val {:?}", val);
-                        Ok(Some(Box::new(val)))
-                    })
+                    Inceptor::new_with_return_val(constructor)
                 }));
                 entry.insert(Box::new(arc.clone()));
                 arc
