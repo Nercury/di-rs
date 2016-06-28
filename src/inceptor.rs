@@ -32,7 +32,6 @@ impl<T1: Any, T2: Any> Inceptor<T1, T2> {
     {
         Self::new(move |p1: &mut T1, p2: &mut T2| -> Result<Option<Box<Any>>> {
             try!(constructor(p1, p2));
-            debug!("instance created, return val not used");
             Ok(None)
         })
     }
@@ -42,9 +41,7 @@ impl<T1: Any, T2: Any> Inceptor<T1, T2> {
               F: for<'r> Fn(&mut T1, &mut T2) -> Result<C> + 'static + Send + Sync
     {
         Self::new(move |p1: &mut T1, p2: &mut T2| -> Result<Option<Box<Any>>> {
-            let val = try!(constructor(p1, p2));
-            debug!("instance created, using return val");
-            Ok(Some(Box::new(val)))
+            Ok(Some(Box::new(try!(constructor(p1, p2)))))
         })
     }
 

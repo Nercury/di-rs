@@ -23,7 +23,3 @@ description = "Ownership-driven dependency injection toolkit."
 [lib]
 name = "di"
 doctest = true
-
-[dependencies]
-env_logger = "0.3"
-log = "0.3"

@@ -4,10 +4,6 @@
 //! <style>.sidebar { margin-top: 53px }</style>
 //!
 
-#[macro_use]
-extern crate log;
-extern crate env_logger;
-
 mod deps;
 mod collection;
 mod scope;

@@ -45,12 +45,8 @@ impl Deps {
     ///
     /// The wrapper `Scope` keeps ownership of all children together with parent object.
     pub fn create<P: Any>(&self, obj: P) -> Result<Scope<P>> {
-        let type_id = TypeId::of::<P>();
-
-        trace!("create id {:?}", type_id);
-
         let (parent, deps) =
-            try!(self.create_deps_for_any_parent(type_id, Box::new(obj), to_shared::<P>));
+            try!(self.create_deps_for_any_parent(TypeId::of::<P>(), Box::new(obj), to_shared::<P>));
         Ok(Scope::from_any_instance(parent, deps))
     }
 
@@ -166,27 +162,16 @@ impl Deps {
                                      -> Result<(AnyInstance, Vec<Box<Any>>)>
         where F: Fn(Box<Any>) -> Box<Any>
     {
-
-        trace!("create shared type {:?}", type_id);
-
         let mut deps = Vec::new();
 
         // First, construct any instances that do not need parent wrapped in mutex
 
         match self.isolated_constructors.get(&type_id) {
             Some(isolated_list) => {
-                trace!("go over isolated constructors");
                 for any_constructor in isolated_list {
-                    trace!("constructor");
                     match any_constructor(&self, &mut parent_not_shared) {
-                        Ok(Constructed { children }) => {
-                            trace!("constructed {:?}", children);
-                            deps.extend(children)
-                        }
-                        Err(any_err) => {
-                            trace!("construction error {:?}", any_err);
-                            return Err(any_err);
-                        }
+                        Ok(Constructed { children }) => deps.extend(children),
+                        Err(any_err) => return Err(any_err),
                     };
                 }
             }
@@ -200,18 +185,10 @@ impl Deps {
             Some(shared_list) => {
                 let mut parent_shared = to_shared(parent_not_shared);
 
-                trace!("go over shared constructors");
                 for any_constructor in shared_list {
-                    trace!("constructor");
                     match any_constructor(&self, &mut parent_shared) {
-                        Ok(ConstructedShared { children }) => {
-                            trace!("constructed {:?}", children);
-                            deps.extend(children)
-                        }
-                        Err(any_err) => {
-                            trace!("construction error {:?}", any_err);
-                            return Err(any_err);
-                        }
+                        Ok(ConstructedShared { children }) => deps.extend(children),
+                        Err(any_err) => return Err(any_err),
                     };
                 }
 
@@ -222,7 +199,6 @@ impl Deps {
 
         // Execute post create actions for the value
 
-        trace!("go over actions");
         if let Some(actions) = self.type_scope_created.get(&type_id) {
             for action in actions {
                 try!(action(&self, &mut parent_result));
@@ -237,7 +213,6 @@ impl Deps {
     fn register_isolated_constructor<P: Any>(&mut self,
                                              any_constructor: Box<Fn(&Deps, &mut Box<Any>)
                                                                      -> Result<Constructed> + Send + Sync>) {
-        debug!("register_isolated_constructor {:?}", TypeId::of::<P>());
         match self.isolated_constructors.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
                 list.get_mut().push(any_constructor);
@@ -253,7 +228,6 @@ impl Deps {
     fn register_shared_constructor<P: Any>(&mut self,
                                            any_constructor: Box<Fn(&Deps, &mut Box<Any>)
                                                                    -> Result<ConstructedShared> + Send + Sync>) {
-        debug!("register_shared_constructor {:?}", TypeId::of::<P>());
         match self.shared_constructors.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
                 list.get_mut().push(any_constructor);
@@ -273,8 +247,6 @@ fn into_action_with_deps<P, F>(action: F)
     where F: for<'r> Fn(&Deps, &mut P) -> Result<()> + 'static + Send + Sync,
           P: 'static + Any
 {
-    debug!("into_action_with_deps for type {:?}", TypeId::of::<P>());
-
     Box::new(move |deps: &Deps, parent: &mut AnyInstance| -> Result<()> {
         match *parent {
             AnyInstance::Isolated(ref mut value) => {
@@ -329,9 +301,6 @@ fn into_isolated_constructor_with_child_deps<P, C, F>
           P: 'static + Any,
           C: 'static + Any
 {
-    debug!("into_isolated_constructor_with_child_deps for type {:?}",
-           TypeId::of::<P>());
-
     Box::new(move |deps: &Deps, parent: &mut Box<Any>| -> Result<Constructed> {
         let child = {
             let concrete_parent = parent.downcast_mut::<P>()
@@ -349,9 +318,6 @@ fn into_isolated_constructor_with_ignored_child_deps<P, C, F>
           P: 'static + Any,
           C: 'static + Any
 {
-    debug!("into_isolated_constructor_with_ignored_child_deps for type {:?}",
-           TypeId::of::<P>());
-
     Box::new(move |deps: &Deps, parent: &mut Box<Any>| -> Result<Constructed> {
         try!(constructor(deps,
                          parent.downcast_mut::<P>()
@@ -367,9 +333,6 @@ fn into_isolated_constructor_without_child_deps<P, F>
     where F: for<'r> Fn(&Deps, &mut P) + 'static + Send + Sync,
           P: 'static + Any
 {
-    debug!("into_isolated_constructor_without_child_deps for type {:?}",
-           TypeId::of::<P>());
-
     Box::new(move |deps: &Deps, parent: &mut Box<Any>| -> Result<Constructed> {
         constructor(deps,
                     parent.downcast_mut::<P>()
@@ -381,7 +344,6 @@ fn into_isolated_constructor_without_child_deps<P, F>
 
 #[cfg(test)]
 mod test {
-    use env_logger;
     use Deps;
     use std::sync::{Arc, Mutex};
 
@@ -459,8 +421,6 @@ mod test {
 
     #[test]
     fn bridge_dependency() {
-        env_logger::init().unwrap();
-
         let mut deps = Deps::new();
 
         let created_bridge = Arc::new(Mutex::new(None));
