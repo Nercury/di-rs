@@ -43,3 +43,6 @@ impl<T: Any> Scope<T> {
         &self.obj
     }
 }
+
+unsafe impl<T> Send for Scope<T> {}
+unsafe impl<T> Sync for Scope<T> {}

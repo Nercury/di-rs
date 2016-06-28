@@ -345,6 +345,7 @@ fn into_isolated_constructor_without_child_deps<P, F>
 #[cfg(test)]
 mod test {
     use Deps;
+    use std::thread;
     use std::sync::{Arc, Mutex};
 
     #[derive(Clone, Debug, Eq, PartialEq)]
@@ -420,7 +421,30 @@ mod test {
     }
 
     #[test]
-    fn bridge_dependency() {
+    fn should_work_accross_threads() {
+        let mut deps = Deps::new();
+
+        deps.attach(|_: &Deps, _: &mut A| Ok(B("b".into())));
+        deps.attach(|_: &Deps, _: &mut B| Ok(C("c".into())));
+
+        let dep_refs = Arc::new(deps);
+
+        let a = thread::spawn({
+            let a_deps = dep_refs.clone();
+            move || a_deps.create(A("a".into())).unwrap()
+        });
+
+        let b = thread::spawn({
+            let b_deps = dep_refs.clone();
+            move || b_deps.create(B("b".into())).unwrap()
+        });
+
+        assert_eq!(b.join().unwrap().explode(), B("b".into()));
+        assert_eq!(a.join().unwrap().explode(), A("a".into()));
+    }
+
+    #[test]
+    fn can_create_bridge_dependency() {
         let mut deps = Deps::new();
 
         let created_bridge = Arc::new(Mutex::new(None));
