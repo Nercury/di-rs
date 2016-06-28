@@ -384,13 +384,13 @@ mod test {
     use Deps;
     use std::sync::{Arc, Mutex};
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug, Eq, PartialEq)]
     struct A(String);
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug, Eq, PartialEq)]
     struct B(String);
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug, Eq, PartialEq)]
     struct C(String);
 
     #[test]
@@ -518,5 +518,9 @@ mod test {
             assert_eq!("HiRustNice",
                        val.as_ref().expect("expected bridge val to be created").concat());
         }
+
+        assert_eq!(c.explode(), B("Rust".into()));
+        assert_eq!(a.explode(), A("Hi".into()));
+        assert_eq!(b.explode(), B("World".into()));
     }
 }
