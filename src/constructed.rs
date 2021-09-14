@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::ops::{Deref, DerefMut};
-use std::sync::{Mutex, Arc, LockResult, PoisonError, MutexGuard};
+use std::sync::{Arc, LockResult, Mutex, MutexGuard, PoisonError};
 
 enum MaybeMutexGuardValue<'a, T: 'a> {
     Guard(MutexGuard<'a, T>),
@@ -18,21 +18,19 @@ pub enum Instance<T> {
 }
 
 impl<T> Instance<T> {
-    pub fn lock<'a>(&'a mut self) -> LockResult<MaybeMutexGuard<'a, T>> {
+    pub fn lock(&mut self) -> LockResult<MaybeMutexGuard<'_, T>> {
         match *self {
-            Instance::Isolated(ref mut val) => {
-                Ok(MaybeMutexGuard { inner: MaybeMutexGuardValue::Ref(val) })
-            }
-            Instance::Shared(ref mut val) => {
-                match val.lock() {
-                    Ok(guard) => Ok(MaybeMutexGuard { inner: MaybeMutexGuardValue::Guard(guard) }),
-                    Err(e) => {
-                        Err(PoisonError::new(MaybeMutexGuard {
-                            inner: MaybeMutexGuardValue::Guard(e.into_inner()),
-                        }))
-                    }
-                }
-            }
+            Instance::Isolated(ref mut val) => Ok(MaybeMutexGuard {
+                inner: MaybeMutexGuardValue::Ref(val),
+            }),
+            Instance::Shared(ref mut val) => match val.lock() {
+                Ok(guard) => Ok(MaybeMutexGuard {
+                    inner: MaybeMutexGuardValue::Guard(guard),
+                }),
+                Err(e) => Err(PoisonError::new(MaybeMutexGuard {
+                    inner: MaybeMutexGuardValue::Guard(e.into_inner()),
+                })),
+            },
         }
     }
 }
@@ -59,29 +57,31 @@ impl<'a, T> DerefMut for MaybeMutexGuard<'a, T> {
 
 #[derive(Debug)]
 pub enum AnyInstance {
-    Isolated(Box<Any>),
-    Shared(Box<Any>),
+    Isolated(Box<dyn Any>),
+    Shared(Box<dyn Any>),
 }
 
 impl AnyInstance {
     pub fn downcast<T: Any>(self) -> Instance<T> {
         match self {
-            AnyInstance::Isolated(parent) => {
-                Instance::Isolated(*parent.downcast()
-                    .expect("expected AnyInstance::Isolated to downcast into type"))
-            }
-            AnyInstance::Shared(parent) => {
-                Instance::Shared(*parent.downcast()
-                    .expect("expected AnyInstance::Shared to downcast into type"))
-            }
+            AnyInstance::Isolated(parent) => Instance::Isolated(
+                *parent
+                    .downcast()
+                    .expect("expected AnyInstance::Isolated to downcast into type"),
+            ),
+            AnyInstance::Shared(parent) => Instance::Shared(
+                *parent
+                    .downcast()
+                    .expect("expected AnyInstance::Shared to downcast into type"),
+            ),
         }
     }
 }
 
 pub struct Constructed {
-    pub children: Vec<Box<Any>>,
+    pub children: Vec<Box<dyn Any>>,
 }
 
 pub struct ConstructedShared {
-    pub children: Vec<Box<Any>>,
+    pub children: Vec<Box<dyn Any>>,
 }

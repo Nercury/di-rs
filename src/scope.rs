@@ -1,20 +1,20 @@
+use constructed::{AnyInstance, Instance, MaybeMutexGuard};
 use std::any::Any;
+use std::mem;
 use std::sync::Arc;
 use std::sync::LockResult;
-use std::mem;
-use constructed::{Instance, AnyInstance, MaybeMutexGuard};
 
 #[derive(Debug)]
 pub struct Scope<T> {
     obj: Instance<T>,
-    childs: Vec<Box<Any>>,
+    childs: Vec<Box<dyn Any>>,
 }
 
 impl<T: Any> Scope<T> {
-    pub fn from_any_instance(obj: AnyInstance, childs: Vec<Box<Any>>) -> Scope<T> {
+    pub fn from_any_instance(obj: AnyInstance, childs: Vec<Box<dyn Any>>) -> Scope<T> {
         Scope {
             obj: obj.downcast(),
-            childs: childs,
+            childs,
         }
     }
 
@@ -25,17 +25,15 @@ impl<T: Any> Scope<T> {
                                 // parent in all cases.
         match self.obj {
             Instance::Isolated(obj) => obj,
-            Instance::Shared(arc) => {
-                Arc::try_unwrap(arc)
-                    .ok()
-                    .expect("expected arc to be last remaining")
-                    .into_inner()
-                    .expect("expected to lock value before exploding")
-            }
+            Instance::Shared(arc) => Arc::try_unwrap(arc)
+                .ok()
+                .expect("expected arc to be last remaining")
+                .into_inner()
+                .expect("expected to lock value before exploding"),
         }
     }
 
-    pub fn lock<'a>(&'a mut self) -> LockResult<MaybeMutexGuard<'a, T>> {
+    pub fn lock(&mut self) -> LockResult<MaybeMutexGuard<'_, T>> {
         self.obj.lock()
     }
 

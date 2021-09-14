@@ -1,8 +1,8 @@
 //! It incepts.
 
-use std::sync::{Arc, Mutex};
 use std::any::Any;
 use std::mem;
+use std::sync::{Arc, Mutex};
 use Result;
 
 pub struct Inceptor<T1, T2> {
@@ -10,12 +10,13 @@ pub struct Inceptor<T1, T2> {
     d2: Vec<Option<Arc<Mutex<T2>>>>,
     used_size1: usize,
     used_size2: usize,
-    constructor: Arc<Fn(&mut T1, &mut T2) -> Result<Option<Box<Any>>> + Send + Sync>,
+    constructor: Arc<dyn Fn(&mut T1, &mut T2) -> Result<Option<Box<dyn Any>>> + Send + Sync>,
 }
 
 impl<T1: Any, T2: Any> Inceptor<T1, T2> {
     pub fn new<F: 'static>(constructor: F) -> Inceptor<T1, T2>
-        where F: Fn(&mut T1, &mut T2) -> Result<Option<Box<Any>>> + Send + Sync
+    where
+        F: Fn(&mut T1, &mut T2) -> Result<Option<Box<dyn Any>>> + Send + Sync,
     {
         Inceptor {
             d1: Vec::new(),
@@ -27,34 +28,36 @@ impl<T1: Any, T2: Any> Inceptor<T1, T2> {
     }
 
     pub fn new_with_ignored_return_val<C, F>(constructor: F) -> Inceptor<T1, T2>
-        where C: 'static + Any,
-              F: for<'r> Fn(&mut T1, &mut T2) -> Result<C> + 'static + Send + Sync
+    where
+        C: 'static + Any,
+        F: for<'r> Fn(&mut T1, &mut T2) -> Result<C> + 'static + Send + Sync,
     {
-        Self::new(move |p1: &mut T1, p2: &mut T2| -> Result<Option<Box<Any>>> {
-            try!(constructor(p1, p2));
-            Ok(None)
-        })
+        Self::new(
+            move |p1: &mut T1, p2: &mut T2| -> Result<Option<Box<dyn Any>>> {
+                constructor(p1, p2)?;
+                Ok(None)
+            },
+        )
     }
 
     pub fn new_with_return_val<C, F>(constructor: F) -> Inceptor<T1, T2>
-        where C: 'static + Any,
-              F: for<'r> Fn(&mut T1, &mut T2) -> Result<C> + 'static + Send + Sync
+    where
+        C: 'static + Any,
+        F: for<'r> Fn(&mut T1, &mut T2) -> Result<C> + 'static + Send + Sync,
     {
-        Self::new(move |p1: &mut T1, p2: &mut T2| -> Result<Option<Box<Any>>> {
-            Ok(Some(Box::new(try!(constructor(p1, p2)))))
-        })
+        Self::new(
+            move |p1: &mut T1, p2: &mut T2| -> Result<Option<Box<dyn Any>>> {
+                Ok(Some(Box::new(constructor(p1, p2)?)))
+            },
+        )
     }
 
-    fn invoke(&mut self, i1: usize, i2: usize) -> Result<Option<Box<Any>>> {
-        let val1: &mut Arc<Mutex<T1>> = match *self.d1
-            .get_mut(i1)
-            .expect("expected to find i1") {
+    fn invoke(&mut self, i1: usize, i2: usize) -> Result<Option<Box<dyn Any>>> {
+        let val1: &mut Arc<Mutex<T1>> = match *self.d1.get_mut(i1).expect("expected to find i1") {
             Some(ref mut val) => val,
             None => unreachable!("expected i1 to exist at slot"),
         };
-        let val2 = match *self.d2
-            .get_mut(i2)
-            .expect("expected to find i2") {
+        let val2 = match *self.d2.get_mut(i2).expect("expected to find i2") {
             Some(ref mut val) => val,
             None => unreachable!("expected i2 to exist at slot"),
         };
@@ -63,28 +66,26 @@ impl<T1: Any, T2: Any> Inceptor<T1, T2> {
         (self.constructor)(&mut locked1, &mut locked2)
     }
 
-    pub fn incept_1(&mut self, parent: Arc<Mutex<T1>>) -> Result<(usize, Vec<Box<Any>>)> {
+    pub fn incept_1(&mut self, parent: Arc<Mutex<T1>>) -> Result<(usize, Vec<Box<dyn Any>>)> {
         let id = insert_into_vec(&mut self.d1, parent, &mut self.used_size1);
         let mut results = Vec::new();
         for i2 in 0..self.d2.len() {
-            if !self.d2[i2].is_none() {
-                match try!(self.invoke(id, i2)) {
-                    Some(res) => results.push(res),
-                    None => (),
+            if self.d2[i2].is_some() {
+                if let Some(res) = self.invoke(id, i2)? {
+                    results.push(res)
                 }
             }
         }
         Ok((id, results))
     }
 
-    pub fn incept_2(&mut self, parent: Arc<Mutex<T2>>) -> Result<(usize, Vec<Box<Any>>)> {
+    pub fn incept_2(&mut self, parent: Arc<Mutex<T2>>) -> Result<(usize, Vec<Box<dyn Any>>)> {
         let id = insert_into_vec(&mut self.d2, parent, &mut self.used_size2);
         let mut results = Vec::new();
         for i1 in 0..self.d1.len() {
-            if !self.d1[i1].is_none() {
-                match try!(self.invoke(i1, id)) {
-                    Some(res) => results.push(res),
-                    None => (),
+            if self.d1[i1].is_some() {
+                if let Some(res) = self.invoke(i1, id)? {
+                    results.push(res)
                 }
             }
         }
@@ -93,29 +94,34 @@ impl<T1: Any, T2: Any> Inceptor<T1, T2> {
 
     pub fn destroy_1(&mut self, id: usize) {
         let mut tmp: Option<Arc<Mutex<T1>>> = None;
-        mem::swap(&mut tmp,
-                  self.d1
-                      .get_mut(id)
-                      .expect(&format!("expected to find destroy_1 value {:?}", id)));
+        mem::swap(
+            &mut tmp,
+            self.d1
+                .get_mut(id)
+                .unwrap_or_else(|| panic!("expected to find destroy_1 value {:?}", id)),
+        );
 
         truncate_to_used_elements_if_removed_id_is_last(&mut self.d1, id, &mut self.used_size1);
     }
 
     pub fn destroy_2(&mut self, id: usize) {
         let mut tmp: Option<Arc<Mutex<T2>>> = None;
-        mem::swap(&mut tmp,
-                  self.d2
-                      .get_mut(id)
-                      .expect(&format!("expected to find destroy_2 value {:?}", id)));
+        mem::swap(
+            &mut tmp,
+            self.d2
+                .get_mut(id)
+                .unwrap_or_else(|| panic!("expected to find destroy_2 value {:?}", id)),
+        );
 
         truncate_to_used_elements_if_removed_id_is_last(&mut self.d2, id, &mut self.used_size2);
     }
 }
 
-fn insert_into_vec<T>(data: &mut Vec<Option<Arc<Mutex<T>>>>,
-                      value: Arc<Mutex<T>>,
-                      used_size: &mut usize)
-                      -> usize {
+fn insert_into_vec<T>(
+    data: &mut Vec<Option<Arc<Mutex<T>>>>,
+    value: Arc<Mutex<T>>,
+    used_size: &mut usize,
+) -> usize {
     for (i, item) in data.iter_mut().enumerate() {
         if item.is_none() {
             let mut tmp = Some(value);
@@ -134,15 +140,17 @@ fn insert_into_vec<T>(data: &mut Vec<Option<Arc<Mutex<T>>>>,
     index
 }
 
-fn truncate_to_used_elements_if_removed_id_is_last<T>(data: &mut Vec<Option<Arc<Mutex<T>>>>,
-                                                      removed_id: usize,
-                                                      used_size: &mut usize) {
+fn truncate_to_used_elements_if_removed_id_is_last<T>(
+    data: &mut Vec<Option<Arc<Mutex<T>>>>,
+    removed_id: usize,
+    used_size: &mut usize,
+) {
     if removed_id + 1 != *used_size {
         return;
     }
     while *used_size > 0 {
         *used_size -= 1;
-        if *used_size == 0 || !data[*used_size - 1].is_none() {
+        if *used_size == 0 || data[*used_size - 1].is_some() {
             break;
         }
     }
@@ -159,14 +167,15 @@ pub struct Destructor<T1: Any, T2: Any> {
 }
 
 impl<T1: Any, T2: Any> Destructor<T1, T2> {
-    pub fn new(inceptor: Arc<Mutex<Inceptor<T1, T2>>>,
-               index: usize,
-               id: usize)
-               -> Destructor<T1, T2> {
+    pub fn new(
+        inceptor: Arc<Mutex<Inceptor<T1, T2>>>,
+        index: usize,
+        id: usize,
+    ) -> Destructor<T1, T2> {
         Destructor {
-            inceptor: inceptor,
-            index: index,
-            id: id,
+            inceptor,
+            index,
+            id,
         }
     }
 }
@@ -174,18 +183,24 @@ impl<T1: Any, T2: Any> Destructor<T1, T2> {
 impl<T1: Any, T2: Any> Drop for Destructor<T1, T2> {
     fn drop(&mut self) {
         if self.index == 1 {
-            self.inceptor.lock().expect("failed to lock").destroy_1(self.id);
+            self.inceptor
+                .lock()
+                .expect("failed to lock")
+                .destroy_1(self.id);
         } else if self.index == 2 {
-            self.inceptor.lock().expect("failed to lock").destroy_2(self.id);
+            self.inceptor
+                .lock()
+                .expect("failed to lock")
+                .destroy_2(self.id);
         }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use std::any::Any;
     use std::sync::{Arc, Mutex};
-    use super::*;
 
     fn count_not_none<T>(data: &mut Vec<Option<Arc<Mutex<T>>>>) -> usize {
         data.iter().filter(|v| !v.is_none()).count()
@@ -198,7 +213,8 @@ mod test {
     #[test]
     fn should_register_and_destroy_first_arg() {
         let mut ic = ic_with_val::<i32, bool>();
-        let (id, instances) = ic.incept_1(Arc::new(Mutex::new(11)))
+        let (id, instances) = ic
+            .incept_1(Arc::new(Mutex::new(11)))
             .expect("failed to incept first arg");
 
         assert_eq!(instances.len(), 0);
@@ -212,7 +228,9 @@ mod test {
     #[test]
     fn should_register_and_destroy_second_arg() {
         let mut ic = ic_with_val::<i32, bool>();
-        let (id, instances) = ic.incept_2(Arc::new(Mutex::new(false)))
+        #[allow(clippy::mutex_atomic)]
+        let (id, instances) = ic
+            .incept_2(Arc::new(Mutex::new(false)))
             .expect("failed to incept first arg");
 
         assert_eq!(instances.len(), 0);
@@ -232,6 +250,7 @@ mod test {
         let (id3, _) = ic.incept_1(value_num_3.clone()).unwrap();
         assert_eq!(count_not_none(&mut ic.d1), 3);
 
+        #[allow(clippy::mutex_atomic)]
         let (other_id, instances) = ic.incept_2(Arc::new(Mutex::new(false))).unwrap();
         assert_eq!(instances.len(), 3);
         assert_eq!(count_not_none(&mut ic.d2), 1);

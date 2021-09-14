@@ -1,36 +1,43 @@
+use constructed::{AnyInstance, Constructed, ConstructedShared};
+use inceptor::{Destructor, Inceptor};
 use std::any::{Any, TypeId};
-use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use constructed::{Constructed, ConstructedShared, AnyInstance};
-use inceptor::{Inceptor, Destructor};
-use {Result, Collection, Scope};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use {Collection, Result, Scope};
 
 pub struct Deps {
     /// Ignored type ().
     empty_type: TypeId,
     /// List of functions that constructs all childs for a type
     /// and returns value wrapped in Any that must live as long as the parent type.
-    isolated_constructors: HashMap<TypeId,
-                                       Vec<Box<Fn(&Deps, &mut Box<Any>) -> Result<Constructed> + Send + Sync>>>,
+    isolated_constructors: HashMap<
+        TypeId,
+        Vec<Box<dyn Fn(&Deps, &mut Box<dyn Any>) -> Result<Constructed> + Send + Sync>>,
+    >,
     /// List of functions that constructs all childs for a type wrapped in Box<Arc<Mutex<T>>> as Box<Any>
     /// and returns value wrapped in Any that must live as long as the parent type.
-    shared_constructors: HashMap<TypeId, Vec<Box<Fn(&Deps, &mut Box<Any>) -> Result<ConstructedShared> + Send + Sync>>>,
+    shared_constructors: HashMap<
+        TypeId,
+        Vec<Box<dyn Fn(&Deps, &mut Box<dyn Any>) -> Result<ConstructedShared> + Send + Sync>>,
+    >,
     /// List of callbacks to invoke after a value and all its dependencies were created.
-    type_scope_created: HashMap<TypeId,
-                                Vec<Box<Fn(&Deps, &mut AnyInstance) -> Result<()> + Send + Sync>>>,
+    type_scope_created:
+        HashMap<TypeId, Vec<Box<dyn Fn(&Deps, &mut AnyInstance) -> Result<()> + Send + Sync>>>,
     /// List of inceptors that manage shared dependency bridge creation for type pairs.
-    inceptors: HashMap<(TypeId, TypeId), Box<Any>>,
+    inceptors: HashMap<(TypeId, TypeId), Box<dyn Any>>,
 }
 
-fn to_shared<T: Any>(not_shared: Box<Any>) -> Box<Any> {
-    let parent: T = *not_shared.downcast::<T>()
-        .expect("expected downcast to P when \
-                 changing to shared P");
+fn to_shared<T: Any>(not_shared: Box<dyn Any>) -> Box<dyn Any> {
+    let parent: T = *not_shared.downcast::<T>().expect(
+        "expected downcast to P when \
+                 changing to shared P",
+    );
     Box::new(Arc::new(Mutex::new(parent)))
 }
 
 impl Deps {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Deps {
         Deps {
             empty_type: TypeId::of::<()>(),
@@ -46,7 +53,7 @@ impl Deps {
     /// The wrapper `Scope` keeps ownership of all children together with parent object.
     pub fn create<P: Any>(&self, obj: P) -> Result<Scope<P>> {
         let (parent, deps) =
-            try!(self.create_deps_for_any_parent(TypeId::of::<P>(), Box::new(obj), to_shared::<P>));
+            self.create_deps_for_any_parent(TypeId::of::<P>(), Box::new(obj), to_shared::<P>)?;
         Ok(Scope::from_any_instance(parent, deps))
     }
 
@@ -56,8 +63,9 @@ impl Deps {
     }
 
     pub fn when_ready<T, F>(&mut self, action: F)
-        where T: 'static + Any,
-              F: for<'r> Fn(&Deps, &mut T) -> Result<()> + 'static + Send + Sync
+    where
+        T: 'static + Any,
+        F: for<'r> Fn(&Deps, &mut T) -> Result<()> + 'static + Send + Sync,
     {
         match self.type_scope_created.entry(TypeId::of::<T>()) {
             Entry::Occupied(mut list) => {
@@ -71,33 +79,40 @@ impl Deps {
 
     /// Single dependency on a parent.
     pub fn attach<P, C, F>(&mut self, constructor: F)
-        where P: 'static + Any, // Parent
-              C: 'static + Any, // Child
-              F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync
+    where
+        P: 'static + Any, // Parent
+        C: 'static + Any, // Child
+        F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync,
     {
         if TypeId::of::<C>() == self.empty_type {
-            self.register_isolated_constructor::<P>(into_isolated_constructor_with_ignored_child_deps(constructor));
+            self.register_isolated_constructor::<P>(
+                into_isolated_constructor_with_ignored_child_deps(constructor),
+            );
         } else {
-            self.register_isolated_constructor::<P>(into_isolated_constructor_with_child_deps(constructor));
+            self.register_isolated_constructor::<P>(into_isolated_constructor_with_child_deps(
+                constructor,
+            ));
         }
     }
 
     /// Single dependency on multiple parents.
     pub fn bridge<P1, P2, C, F>(&mut self, constructor: F)
-        where P1: 'static + Any + Send + Sync, // Parent 1
-              P2: 'static + Any + Send + Sync, // Parent 2
-              C: 'static + Any, // Child
-              F: for<'r> Fn(&mut P1, &mut P2) -> Result<C> + 'static + Send + Sync
+    where
+        P1: 'static + Any + Send + Sync, // Parent 1
+        P2: 'static + Any + Send + Sync, // Parent 2
+        C: 'static + Any,                // Child
+        F: for<'r> Fn(&mut P1, &mut P2) -> Result<C> + 'static + Send + Sync,
     {
         // Get or insert inceptor that is used to manage P1 and P2 instances.
-        let inceptor_1 = match self.inceptors
-            .entry((TypeId::of::<P1>(), TypeId::of::<P2>())) {
-            Entry::Occupied(entry) => {
-                entry.get()
-                    .downcast_ref::<Arc<Mutex<Inceptor<P1, P2>>>>()
-                    .expect("expected to find Inceptor of correct type in map")
-                    .clone()
-            }
+        let inceptor_1 = match self
+            .inceptors
+            .entry((TypeId::of::<P1>(), TypeId::of::<P2>()))
+        {
+            Entry::Occupied(entry) => entry
+                .get()
+                .downcast_ref::<Arc<Mutex<Inceptor<P1, P2>>>>()
+                .expect("expected to find Inceptor of correct type in map")
+                .clone(),
             Entry::Vacant(entry) => {
                 let arc = Arc::new(Mutex::new(if TypeId::of::<C>() == self.empty_type {
                     Inceptor::new_with_ignored_return_val(constructor)
@@ -112,70 +127,72 @@ impl Deps {
         // Create inceptor clone for P2 instances
         let inceptor_2 = inceptor_1.clone();
 
-        self.register_shared_constructor::<P1>(
-            into_shared_constructor::<P1, P2, C>(
-                inceptor_1,
-                Box::new(|inceptor: &Arc<Mutex<Inceptor<P1, P2>>>, parent: &mut Box<Any>|
-                {
-                    let parent_for_inceptor = parent.downcast_mut::<Arc<Mutex<P1>>>()
+        self.register_shared_constructor::<P1>(into_shared_constructor::<P1, P2, C>(
+            inceptor_1,
+            Box::new(
+                |inceptor: &Arc<Mutex<Inceptor<P1, P2>>>, parent: &mut Box<dyn Any>| {
+                    let parent_for_inceptor = parent
+                        .downcast_mut::<Arc<Mutex<P1>>>()
                         .expect("expected downcast P1")
                         .clone();
-                    inceptor.lock()
+                    inceptor
+                        .lock()
                         .expect("failed to lock ic1")
                         .incept_1(parent_for_inceptor)
-                }),
-                1
-            )
-        );
-        self.register_shared_constructor::<P2>(
-            into_shared_constructor::<P1, P2, C>(
-                inceptor_2,
-                Box::new(|inceptor: &Arc<Mutex<Inceptor<P1, P2>>>, parent: &mut Box<Any>|
-                {
-                    let parent_for_inceptor = parent.downcast_mut::<Arc<Mutex<P2>>>()
+                },
+            ),
+            1,
+        ));
+        self.register_shared_constructor::<P2>(into_shared_constructor::<P1, P2, C>(
+            inceptor_2,
+            Box::new(
+                |inceptor: &Arc<Mutex<Inceptor<P1, P2>>>, parent: &mut Box<dyn Any>| {
+                    let parent_for_inceptor = parent
+                        .downcast_mut::<Arc<Mutex<P2>>>()
                         .expect("expected downcast P2")
                         .clone();
-                    inceptor.lock()
+                    inceptor
+                        .lock()
                         .expect("failed to lock ic2")
                         .incept_2(parent_for_inceptor)
-                }),
-                2
-            )
-        );
+                },
+            ),
+            2,
+        ));
     }
 
     pub fn collectable<C, F>(&mut self, constructor: F)
-        where C: 'static + Any,
-              F: for<'r> Fn(&Deps) -> C + 'static + Send + Sync
+    where
+        C: 'static + Any,
+        F: for<'r> Fn(&Deps) -> C + 'static + Send + Sync,
     {
         self.register_isolated_constructor::<Collection<C>>(
-            into_isolated_constructor_without_child_deps(move |deps: &Deps, parent: &mut Collection<C>| {
-                parent.push(constructor(deps))
-            })
+            into_isolated_constructor_without_child_deps(
+                move |deps: &Deps, parent: &mut Collection<C>| parent.push(constructor(deps)),
+            ),
         );
     }
 
-    fn create_deps_for_any_parent<F>(&self,
-                                     type_id: TypeId,
-                                     mut parent_not_shared: Box<Any>,
-                                     to_shared: F)
-                                     -> Result<(AnyInstance, Vec<Box<Any>>)>
-        where F: Fn(Box<Any>) -> Box<Any>
+    fn create_deps_for_any_parent<F>(
+        &self,
+        type_id: TypeId,
+        mut parent_not_shared: Box<dyn Any>,
+        to_shared: F,
+    ) -> Result<(AnyInstance, Vec<Box<dyn Any>>)>
+    where
+        F: Fn(Box<dyn Any>) -> Box<dyn Any>,
     {
         let mut deps = Vec::new();
 
         // First, construct any instances that do not need parent wrapped in mutex
 
-        match self.isolated_constructors.get(&type_id) {
-            Some(isolated_list) => {
-                for any_constructor in isolated_list {
-                    match any_constructor(&self, &mut parent_not_shared) {
-                        Ok(Constructed { children }) => deps.extend(children),
-                        Err(any_err) => return Err(any_err),
-                    };
-                }
+        if let Some(isolated_list) = self.isolated_constructors.get(&type_id) {
+            for any_constructor in isolated_list {
+                match any_constructor(self, &mut parent_not_shared) {
+                    Ok(Constructed { children }) => deps.extend(children),
+                    Err(any_err) => return Err(any_err),
+                };
             }
-            None => (),
         }
 
         // Then, check if there are shared constructors, and if so, wrap value in mutex
@@ -186,7 +203,7 @@ impl Deps {
                 let mut parent_shared = to_shared(parent_not_shared);
 
                 for any_constructor in shared_list {
-                    match any_constructor(&self, &mut parent_shared) {
+                    match any_constructor(self, &mut parent_shared) {
                         Ok(ConstructedShared { children }) => deps.extend(children),
                         Err(any_err) => return Err(any_err),
                     };
@@ -201,7 +218,7 @@ impl Deps {
 
         if let Some(actions) = self.type_scope_created.get(&type_id) {
             for action in actions {
-                try!(action(&self, &mut parent_result));
+                action(self, &mut parent_result)?;
             }
         }
 
@@ -210,9 +227,10 @@ impl Deps {
 
     /// Register child constructor that will be invoked when the parent `P` type is
     /// created.
-    fn register_isolated_constructor<P: Any>(&mut self,
-                                             any_constructor: Box<Fn(&Deps, &mut Box<Any>)
-                                                                     -> Result<Constructed> + Send + Sync>) {
+    fn register_isolated_constructor<P: Any>(
+        &mut self,
+        any_constructor: Box<dyn Fn(&Deps, &mut Box<dyn Any>) -> Result<Constructed> + Send + Sync>,
+    ) {
         match self.isolated_constructors.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
                 list.get_mut().push(any_constructor);
@@ -225,9 +243,12 @@ impl Deps {
 
     /// Register child constructor that will be invoked when the parent `P` type is
     /// created.
-    fn register_shared_constructor<P: Any>(&mut self,
-                                           any_constructor: Box<Fn(&Deps, &mut Box<Any>)
-                                                                   -> Result<ConstructedShared> + Send + Sync>) {
+    fn register_shared_constructor<P: Any>(
+        &mut self,
+        any_constructor: Box<
+            dyn Fn(&Deps, &mut Box<dyn Any>) -> Result<ConstructedShared> + Send + Sync,
+        >,
+    ) {
         match self.shared_constructors.entry(TypeId::of::<P>()) {
             Entry::Occupied(mut list) => {
                 list.get_mut().push(any_constructor);
@@ -242,111 +263,141 @@ impl Deps {
 unsafe impl Send for Deps {}
 unsafe impl Sync for Deps {}
 
-fn into_action_with_deps<P, F>(action: F)
-                               -> Box<Fn(&Deps, &mut AnyInstance) -> Result<()> + Send + Sync>
-    where F: for<'r> Fn(&Deps, &mut P) -> Result<()> + 'static + Send + Sync,
-          P: 'static + Any
+fn into_action_with_deps<P, F>(
+    action: F,
+) -> Box<dyn Fn(&Deps, &mut AnyInstance) -> Result<()> + Send + Sync>
+where
+    F: for<'r> Fn(&Deps, &mut P) -> Result<()> + 'static + Send + Sync,
+    P: 'static + Any,
 {
     Box::new(move |deps: &Deps, parent: &mut AnyInstance| -> Result<()> {
         match *parent {
-            AnyInstance::Isolated(ref mut value) => {
-                try!(action(deps,
-                            &mut value.downcast_mut::<P>()
-                                .expect("expected to downcast type in post create action")))
-            }
-            AnyInstance::Shared(ref mut value) => {
-                try!(action(deps,
-                            &mut value.downcast_mut::<Arc<Mutex<P>>>()
-                                .expect("expected to downcast type in post create action")
-                                .lock()
-                                .expect("expected to lock value for AnyInstance::Shared action")))
-            }
+            AnyInstance::Isolated(ref mut value) => action(
+                deps,
+                &mut value
+                    .downcast_mut::<P>()
+                    .expect("expected to downcast type in post create action"),
+            )?,
+            AnyInstance::Shared(ref mut value) => action(
+                deps,
+                &mut value
+                    .downcast_mut::<Arc<Mutex<P>>>()
+                    .expect("expected to downcast type in post create action")
+                    .lock()
+                    .expect("expected to lock value for AnyInstance::Shared action"),
+            )?,
         };
         Ok(())
     })
 }
 
-fn into_shared_constructor<P1, P2, C>
-    (
-        inceptor: Arc<Mutex<Inceptor<P1, P2>>>,
-        incept_fun: Box<Fn(&Arc<Mutex<Inceptor<P1, P2>>>, &mut Box<Any>) -> Result<(usize, Vec<Box<Any>>)> + Send + Sync>,
-        index: usize
+fn into_shared_constructor<P1, P2, C>(
+    inceptor: Arc<Mutex<Inceptor<P1, P2>>>,
+    incept_fun: Box<
+        dyn Fn(
+                &Arc<Mutex<Inceptor<P1, P2>>>,
+                &mut Box<dyn Any>,
+            ) -> Result<(usize, Vec<Box<dyn Any>>)>
+            + Send
+            + Sync,
+    >,
+    index: usize,
+) -> Box<dyn Fn(&Deps, &mut Box<dyn Any>) -> Result<ConstructedShared> + Send + Sync>
+where
+    P1: 'static + Any + Send + Sync, // Parent 1
+    P2: 'static + Any + Send + Sync, // Parent 2
+    C: 'static + Any,                // Child
+{
+    Box::new(
+        move |deps: &Deps, parent: &mut Box<dyn Any>| -> Result<ConstructedShared> {
+            let (id, instances) = incept_fun(&inceptor, parent)?;
+
+            let mut children: Vec<Box<dyn Any>> = Vec::with_capacity(instances.len() + 1);
+
+            for instance in instances {
+                let instance_artifacts =
+                    deps.create_deps_for_any_parent(TypeId::of::<C>(), instance, to_shared::<C>)?;
+                children.push(Box::new(instance_artifacts));
+            }
+
+            children.push(Box::new(Destructor::new(inceptor.clone(), index, id)));
+
+            Ok(ConstructedShared { children })
+        },
     )
-     -> Box<Fn(&Deps, &mut Box<Any>) -> Result<ConstructedShared> + Send + Sync>
-    where P1: 'static + Any + Send + Sync, // Parent 1
-          P2: 'static + Any + Send + Sync, // Parent 2
-          C: 'static + Any // Child
-{
-    Box::new(move |deps: &Deps, parent: &mut Box<Any>| -> Result<ConstructedShared> {
-        let (id, instances) = try!(incept_fun(&inceptor, parent));
-
-        let mut children: Vec<Box<Any>> = Vec::with_capacity(instances.len() + 1);
-
-        for instance in instances {
-            let instance_artifacts =
-                try!(deps.create_deps_for_any_parent(TypeId::of::<C>(), instance, to_shared::<C>));
-            children.push(Box::new(instance_artifacts));
-        }
-
-        children.push(Box::new(Destructor::new(inceptor.clone(), index, id)));
-
-        Ok(ConstructedShared { children: children })
-    })
 }
 
-fn into_isolated_constructor_with_child_deps<P, C, F>
-    (constructor: F)
-     -> Box<Fn(&Deps, &mut Box<Any>) -> Result<Constructed> + Send + Sync>
-    where F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync,
-          P: 'static + Any,
-          C: 'static + Any
+fn into_isolated_constructor_with_child_deps<P, C, F>(
+    constructor: F,
+) -> Box<dyn Fn(&Deps, &mut Box<dyn Any>) -> Result<Constructed> + Send + Sync>
+where
+    F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync,
+    P: 'static + Any,
+    C: 'static + Any,
 {
-    Box::new(move |deps: &Deps, parent: &mut Box<Any>| -> Result<Constructed> {
-        let child = {
-            let concrete_parent = parent.downcast_mut::<P>()
-                .expect("expected to downcast type in into_isolated_constructor_with_child_deps");
-            try!(deps.create(try!(constructor(deps, concrete_parent))))
-        };
-        Ok(Constructed { children: vec![Box::new(child)] })
-    })
+    Box::new(
+        move |deps: &Deps, parent: &mut Box<dyn Any>| -> Result<Constructed> {
+            let child = {
+                let concrete_parent = parent.downcast_mut::<P>().expect(
+                    "expected to downcast type in into_isolated_constructor_with_child_deps",
+                );
+                deps.create(constructor(deps, concrete_parent)?)?
+            };
+            Ok(Constructed {
+                children: vec![Box::new(child)],
+            })
+        },
+    )
 }
 
-fn into_isolated_constructor_with_ignored_child_deps<P, C, F>
-    (constructor: F)
-     -> Box<Fn(&Deps, &mut Box<Any>) -> Result<Constructed> + Send + Sync>
-    where F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync,
-          P: 'static + Any,
-          C: 'static + Any
+fn into_isolated_constructor_with_ignored_child_deps<P, C, F>(
+    constructor: F,
+) -> Box<dyn Fn(&Deps, &mut Box<dyn Any>) -> Result<Constructed> + Send + Sync>
+where
+    F: for<'r> Fn(&Deps, &mut P) -> Result<C> + 'static + Send + Sync,
+    P: 'static + Any,
+    C: 'static + Any,
 {
-    Box::new(move |deps: &Deps, parent: &mut Box<Any>| -> Result<Constructed> {
-        try!(constructor(deps,
-                         parent.downcast_mut::<P>()
-                             .expect("expected to downcast type in \
-                                      into_isolated_constructor_with_ignored_child_deps")));
-        Ok(Constructed { children: vec![] })
-    })
+    Box::new(
+        move |deps: &Deps, parent: &mut Box<dyn Any>| -> Result<Constructed> {
+            constructor(
+                deps,
+                parent.downcast_mut::<P>().expect(
+                    "expected to downcast type in \
+                                      into_isolated_constructor_with_ignored_child_deps",
+                ),
+            )?;
+            Ok(Constructed { children: vec![] })
+        },
+    )
 }
 
-fn into_isolated_constructor_without_child_deps<P, F>
-    (constructor: F)
-     -> Box<Fn(&Deps, &mut Box<Any>) -> Result<Constructed> + Send + Sync>
-    where F: for<'r> Fn(&Deps, &mut P) + 'static + Send + Sync,
-          P: 'static + Any
+fn into_isolated_constructor_without_child_deps<P, F>(
+    constructor: F,
+) -> Box<dyn Fn(&Deps, &mut Box<dyn Any>) -> Result<Constructed> + Send + Sync>
+where
+    F: for<'r> Fn(&Deps, &mut P) + 'static + Send + Sync,
+    P: 'static + Any,
 {
-    Box::new(move |deps: &Deps, parent: &mut Box<Any>| -> Result<Constructed> {
-        constructor(deps,
-                    parent.downcast_mut::<P>()
-                        .expect("expected to downcast type in \
-                                 into_isolated_constructor_without_child_deps"));
-        Ok(Constructed { children: vec![] })
-    })
+    Box::new(
+        move |deps: &Deps, parent: &mut Box<dyn Any>| -> Result<Constructed> {
+            constructor(
+                deps,
+                parent.downcast_mut::<P>().expect(
+                    "expected to downcast type in \
+                                 into_isolated_constructor_without_child_deps",
+                ),
+            );
+            Ok(Constructed { children: vec![] })
+        },
+    )
 }
 
 #[cfg(test)]
 mod test {
-    use Deps;
-    use std::thread;
     use std::sync::{Arc, Mutex};
+    use std::thread;
+    use Deps;
 
     #[derive(Clone, Debug, Eq, PartialEq)]
     struct A(String);
@@ -376,8 +427,10 @@ mod test {
 
         deps.create(A("Hello".into())).unwrap();
 
-        assert_eq!("Hello+B",
-                   (*created_b_ref.lock().unwrap()).clone().unwrap().0);
+        assert_eq!(
+            "Hello+B",
+            (*created_b_ref.lock().unwrap()).clone().unwrap().0
+        );
     }
 
     #[test]
@@ -401,8 +454,10 @@ mod test {
 
         deps.create(A("Hello".into())).unwrap();
 
-        assert_eq!("Hello+B+C",
-                   (*created_c_ref.lock().unwrap()).clone().unwrap().0);
+        assert_eq!(
+            "Hello+B+C",
+            (*created_c_ref.lock().unwrap()).clone().unwrap().0
+        );
     }
 
     #[test]
@@ -435,7 +490,7 @@ mod test {
         });
 
         let b = thread::spawn({
-            let b_deps = dep_refs.clone();
+            let b_deps = dep_refs;
             move || b_deps.create(B("b".into())).unwrap()
         });
 
@@ -483,10 +538,13 @@ mod test {
         }
 
         {
-            let val = created_bridge.lock()
-                .unwrap();
-            assert_eq!("HiWorldNice",
-                       val.as_ref().expect("expected bridge val to be created").concat());
+            let val = created_bridge.lock().unwrap();
+            assert_eq!(
+                "HiWorldNice",
+                val.as_ref()
+                    .expect("expected bridge val to be created")
+                    .concat()
+            );
         }
 
         let mut c = deps.create(B("Rust".into())).unwrap();
@@ -498,10 +556,13 @@ mod test {
         }
 
         {
-            let val = created_bridge.lock()
-                .unwrap();
-            assert_eq!("HiRustNice",
-                       val.as_ref().expect("expected bridge val to be created").concat());
+            let val = created_bridge.lock().unwrap();
+            assert_eq!(
+                "HiRustNice",
+                val.as_ref()
+                    .expect("expected bridge val to be created")
+                    .concat()
+            );
         }
 
         assert_eq!(c.explode(), B("Rust".into()));
