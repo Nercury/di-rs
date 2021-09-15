@@ -4,16 +4,18 @@ use di::Deps;
 use std::sync::Arc;
 
 struct Window {
-    pub resize_listeners: Vec<Box<Fn(i32, i32) + Sync + Send>>,
+    pub resize_listeners: Vec<Box<dyn Fn(i32, i32) + Sync + Send>>,
 }
 
 struct Logger {
-    pub log_fn: Arc<Fn(&str) + Send + Sync>,
+    pub log_fn: Arc<dyn Fn(&str) + Send + Sync>,
 }
 
 impl Window {
     fn new() -> Window {
-        Window { resize_listeners: Vec::new() }
+        Window {
+            resize_listeners: Vec::new(),
+        }
     }
 
     fn resize(&self, w: i32, h: i32) {
@@ -25,9 +27,12 @@ impl Window {
 
 impl Logger {
     fn new<F>(log_function: F) -> Logger
-        where F: Fn(&str) + Send + Sync + 'static
+    where
+        F: Fn(&str) + Send + Sync + 'static,
     {
-        Logger { log_fn: Arc::new(log_function) }
+        Logger {
+            log_fn: Arc::new(log_function),
+        }
     }
 }
 
@@ -44,7 +49,8 @@ fn main() {
     });
 
     let mut window = deps.create(Window::new()).unwrap();
-    deps.create(Logger::new(|message| println!("message: {:?}", message))).unwrap();
+    deps.create(Logger::new(|message| println!("message: {:?}", message)))
+        .unwrap();
 
     window.lock().unwrap().resize(12, 13);
 }
